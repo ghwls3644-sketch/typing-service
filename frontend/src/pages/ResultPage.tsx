@@ -1,5 +1,7 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
+import type { PracticeMode } from '../types/practice'
+import { saveSession, getGuestSessionId, type SessionCreateData } from '../lib/typingApi'
 import './ResultPage.css'
 
 interface ResultStats {
@@ -11,14 +13,39 @@ interface ResultStats {
     errors: number
 }
 
+interface ErrorAnalysis {
+    char: string
+    expected: string
+    count: number
+}
+
+interface LocationState {
+    stats: ResultStats
+    text: string
+    userInput?: string
+    language: 'korean' | 'english'
+    mode?: PracticeMode
+    metadata?: {
+        submode: PracticeMode
+        result_extra?: {
+            fail_reason?: string | null
+        }
+    }
+}
+
 function ResultPage() {
     const location = useLocation()
     const navigate = useNavigate()
-    const { stats, text, language } = location.state as {
-        stats: ResultStats
-        text: string
-        language: 'korean' | 'english'
-    } || { stats: null, text: '', language: 'korean' }
+    const state = location.state as LocationState | null
+    
+    const { stats, text, userInput, language, mode, metadata } = state || {
+        stats: null,
+        text: '',
+        userInput: '',
+        language: 'korean' as const,
+        mode: 'sentence' as PracticeMode,
+        metadata: undefined
+    }
 
     // 결과 없이 접근 시 리다이렉트
     useEffect(() => {
@@ -26,6 +53,73 @@ function ResultPage() {
             navigate('/practice')
         }
     }, [stats, navigate])
+    
+    // 세션 저장 상태
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+    const saveAttempted = useRef(false)
+    
+    // 결과 저장 (마운트 시 한 번만)
+    useEffect(() => {
+        if (!stats || saveAttempted.current) return
+        saveAttempted.current = true
+        
+        const saveResult = async () => {
+            setSaveStatus('saving')
+            try {
+                const sessionData: SessionCreateData = {
+                    mode: 'practice',
+                    language: language === 'korean' ? 'ko' : 'en',
+                    text_content: text,
+                    duration_ms: Math.round(stats.time * 1000),
+                    input_length: stats.totalChars,
+                    correct_length: stats.correctChars,
+                    error_count: stats.errors,
+                    accuracy: stats.accuracy,
+                    wpm: stats.wpm,
+                    cpm: Math.round(stats.correctChars / (stats.time / 60)),
+                    metadata: metadata,
+                    guest_session_id: getGuestSessionId()
+                }
+                await saveSession(sessionData)
+                setSaveStatus('saved')
+                console.log('Session saved successfully')
+            } catch (err) {
+                console.warn('Failed to save session:', err)
+                setSaveStatus('error')
+            }
+        }
+        
+        saveResult()
+    }, [stats, text, language, metadata])
+
+    // 오타 분석 (Top 5)
+    const errorAnalysis = useMemo((): ErrorAnalysis[] => {
+        if (!text || !userInput) return []
+        
+        const errorMap = new Map<string, { expected: string; count: number }>()
+        
+        for (let i = 0; i < Math.min(text.length, userInput.length); i++) {
+            if (text[i] !== userInput[i]) {
+                const key = `${text[i]}→${userInput[i]}`
+                const existing = errorMap.get(key)
+                if (existing) {
+                    existing.count++
+                } else {
+                    errorMap.set(key, { expected: text[i], count: 1 })
+                }
+            }
+        }
+        
+        // Top 5로 정렬
+        return Array.from(errorMap.entries())
+            .map(([key, value]) => ({
+                char: key.split('→')[1] || '?',
+                expected: value.expected,
+                count: value.count
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5)
+    }, [text, userInput])
 
     if (!stats) {
         return null
@@ -52,8 +146,30 @@ function ResultPage() {
         return `${mins}:${secs.toString().padStart(2, '0')}.${ms}`
     }
 
+    // 모드 이름
+    const getModeName = (m?: PracticeMode) => {
+        const names: Record<PracticeMode, string> = {
+            sentence: '문장 연습',
+            word: '단어 연습',
+            time_attack: '타임어택',
+            accuracy_challenge: '정확도 챌린지',
+            kor_drill: '한글 드릴',
+            weakness_drill: '약점 훈련'
+        }
+        return m ? names[m] : '연습'
+    }
+
     // 피드백 메시지
     const getFeedback = () => {
+        // 종료 이유에 따른 피드백
+        const failReason = metadata?.result_extra?.fail_reason
+        if (failReason === 'time_up') {
+            return '⏰ 시간이 종료되었습니다! 다음에는 더 빠르게 도전해보세요.'
+        }
+        if (failReason === 'max_errors') {
+            return '❌ 오타 제한에 도달했습니다. 정확도를 높여보세요!'
+        }
+        
         if (stats.wpm >= 80 && stats.accuracy >= 95) {
             return '🏆 놀라운 실력입니다! 타자 마스터시네요!'
         }
@@ -73,7 +189,20 @@ function ResultPage() {
         <div className="result-page container">
             {/* 결과 카드 */}
             <div className="result-card">
+                {/* 저장 상태 표시 */}
+                <div className={`save-status ${saveStatus}`}>
+                    {saveStatus === 'saving' && '💾 저장 중...'}
+                    {saveStatus === 'saved' && '✅ 기록 저장됨'}
+                    {saveStatus === 'error' && '⚠️ 저장 실패 (오프라인 모드)'}
+                </div>
                 <h1 className="result-title">연습 결과</h1>
+                
+                {/* 모드 표시 */}
+                {mode && (
+                    <div className="mode-tag">
+                        {getModeName(mode)} · {language === 'korean' ? '🇰🇷 한글' : '🇺🇸 영어'}
+                    </div>
+                )}
 
                 {/* 등급 표시 */}
                 <div className="grade-section">
@@ -136,6 +265,26 @@ function ResultPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* 오타 분석 */}
+                {errorAnalysis.length > 0 && (
+                    <div className="error-analysis">
+                        <h3>🔍 오타 분석 Top {errorAnalysis.length}</h3>
+                        <div className="error-list">
+                            {errorAnalysis.map((error, index) => (
+                                <div key={index} className="error-item">
+                                    <span className="error-expected">{error.expected}</span>
+                                    <span className="error-arrow">→</span>
+                                    <span className="error-typed">{error.char === ' ' ? '␣' : error.char}</span>
+                                    <span className="error-count">{error.count}회</span>
+                                </div>
+                            ))}
+                        </div>
+                        <Link to="/practice" state={{ mode: 'weakness_drill', focusErrors: errorAnalysis }} className="btn btn-warning btn-sm">
+                            💪 약점 훈련 시작
+                        </Link>
+                    </div>
+                )}
 
                 {/* 연습 문장 */}
                 <div className="practiced-text">

@@ -1,3 +1,31 @@
+/* 서버 상태 표시 */
+.server-status {
+    text-align: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.server-status.loading {
+    color: var(--color-info, #60a5fa);
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.server-status.error {
+    color: var(--color-warning, #fbbf24);
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.server-status.success {
+    color: var(--color-success, #34d399);
+    background: rgba(52, 211, 153, 0.1);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
 .practice-page {
     max-width: 900px;
     margin: 0 auto;
@@ -14,6 +42,38 @@
 .practice-header h1 {
     font-size: 2rem;
     font-weight: 700;
+}
+
+/* 진행 상황 표시 */
+.progress-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-lg);
+    font-size: 1.25rem;
+}
+
+.progress-current {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.progress-separator {
+    color: var(--text-muted);
+}
+
+.progress-total {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.progress-label {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-left: var(--spacing-sm);
 }
 
 /* 언어 토글 */
@@ -197,6 +257,43 @@
 .text-error {
     color: var(--text-error);
     font-weight: 600;
+}
+
+/* 뒤로가기 버튼 */
+.btn-back {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.btn-back:hover {
+    color: var(--text-primary);
+}
+
+.btn-ghost {
+    background: transparent;
+    border: none;
+}
+
+/* 모드 뱃지 (헤더) */
+.mode-badge-header {
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* 타이머 경고 */
+.stat-item.timer .stat-value.warning {
+    color: var(--color-danger);
+    animation: pulse 0.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 /* 반응형 */
