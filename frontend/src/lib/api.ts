@@ -50,20 +50,41 @@ class ApiClient {
         const { params, ...fetchOptions } = options
         const url = this.buildUrl(endpoint, params)
 
-        const response = await fetch(url, {
-            ...fetchOptions,
-            headers: {
-                ...this.getHeaders(),
-                ...fetchOptions.headers,
-            },
-        })
+        const maxRetries = 3
+        const baseDelay = 1000 // 1초
 
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}))
-            throw new Error(error.detail || `HTTP Error: ${response.status}`)
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await fetch(url, {
+                    ...fetchOptions,
+                    headers: {
+                        ...this.getHeaders(),
+                        ...fetchOptions.headers,
+                    },
+                })
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}))
+                    throw new Error(error.detail || `HTTP Error: ${response.status}`)
+                }
+
+                return response.json()
+            } catch (error) {
+                const isLastAttempt = attempt === maxRetries
+                const isNetworkError = error instanceof TypeError // fetch 네트워크 에러
+
+                if (isLastAttempt || !isNetworkError) {
+                    throw error
+                }
+
+                // 지수 백오프: 1s, 2s, 4s
+                const delay = baseDelay * Math.pow(2, attempt)
+                console.warn(`API 요청 실패, ${delay / 1000}초 후 재시도... (${attempt + 1}/${maxRetries})`)
+                await new Promise(resolve => setTimeout(resolve, delay))
+            }
         }
 
-        return response.json()
+        throw new Error('API 요청 실패: 최대 재시도 횟수 초과')
     }
 
     async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {

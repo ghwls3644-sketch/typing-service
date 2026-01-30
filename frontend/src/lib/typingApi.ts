@@ -112,3 +112,75 @@ export function getGuestSessionId(): string {
     }
     return id
 }
+
+// === 로컬 백업 시스템 ===
+const PENDING_SESSIONS_KEY = 'typing_pending_sessions'
+
+interface PendingSession extends SessionCreateData {
+    savedAt: number
+}
+
+/**
+ * 실패한 세션을 로컬에 저장
+ */
+export function savePendingSession(data: SessionCreateData): void {
+    try {
+        const pending: PendingSession[] = JSON.parse(localStorage.getItem(PENDING_SESSIONS_KEY) || '[]')
+        pending.push({ ...data, savedAt: Date.now() })
+        // 최대 20개 유지 (오래된 것 제거)
+        const trimmed = pending.slice(-20)
+        localStorage.setItem(PENDING_SESSIONS_KEY, JSON.stringify(trimmed))
+    } catch (e) {
+        console.error('로컬 저장 실패:', e)
+    }
+}
+
+/**
+ * 대기 중인 세션 목록 조회
+ */
+export function getPendingSessions(): PendingSession[] {
+    try {
+        return JSON.parse(localStorage.getItem(PENDING_SESSIONS_KEY) || '[]')
+    } catch {
+        return []
+    }
+}
+
+/**
+ * 대기 중인 세션 동기화 시도
+ */
+export async function syncPendingSessions(): Promise<{ synced: number; failed: number }> {
+    const pending = getPendingSessions()
+    if (pending.length === 0) return { synced: 0, failed: 0 }
+
+    let synced = 0
+    const stillPending: PendingSession[] = []
+
+    for (const session of pending) {
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { savedAt, ...data } = session
+            await saveSession(data)
+            synced++
+        } catch {
+            stillPending.push(session)
+        }
+    }
+
+    localStorage.setItem(PENDING_SESSIONS_KEY, JSON.stringify(stillPending))
+    return { synced, failed: stillPending.length }
+}
+
+/**
+ * 세션 저장 (실패 시 로컬 백업)
+ */
+export async function saveSessionWithBackup(data: SessionCreateData): Promise<SessionResponse | null> {
+    try {
+        const response = await saveSession(data)
+        return response
+    } catch (e) {
+        console.warn('세션 저장 실패, 로컬에 백업:', e)
+        savePendingSession(data)
+        return null
+    }
+}

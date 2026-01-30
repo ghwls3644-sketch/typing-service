@@ -1,11 +1,18 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import ModeSelector from '../components/Practice/ModeSelector'
 import ModeSettings from '../components/Practice/ModeSettings'
 import { useTypingEngine } from '../hooks/useTypingEngine'
 import { DEFAULT_SETTINGS, type PracticeMode, type PracticeSettings, type TypingStats } from '../types/practice'
 import { fetchTextItems, type TextItem } from '../lib/typingApi'
 import './PracticePage.css'
+
+// 약점 훈련용 타입
+interface ErrorAnalysisItem {
+  char: string
+  expected: string
+  count: number
+}
 
 // 샘플 문장 데이터
 const sampleTexts = {
@@ -82,11 +89,24 @@ type Phase = 'select' | 'practice'
 
 function PracticePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const inputRef = useRef<HTMLInputElement>(null)
   
   // 단계: select(모드 선택) -> practice(연습 중)
   const [phase, setPhase] = useState<Phase>('select')
   const [settings, setSettings] = useState<PracticeSettings>(DEFAULT_SETTINGS)
+  
+  // 약점 훈련용 에러 데이터 (ResultPage에서 전달)
+  const [focusErrors, setFocusErrors] = useState<ErrorAnalysisItem[]>([])
+  
+  // location state에서 약점 정보 수신
+  useEffect(() => {
+    const state = location.state as { mode?: PracticeMode; focusErrors?: ErrorAnalysisItem[] } | null
+    if (state?.mode === 'weakness_drill' && state?.focusErrors) {
+      setFocusErrors(state.focusErrors)
+      setSettings(prev => ({ ...prev, mode: 'weakness_drill' }))
+    }
+  }, [location.state])
   
   // 아이템 큐 시스템 (문장/단어를 순차적으로 진행)
   const [itemQueue, setItemQueue] = useState<string[]>([])
@@ -129,6 +149,27 @@ function PracticePage() {
     const mode = settings.mode
     const count = settings.itemsPerSession || 5
     
+    // 약점 훈련 모드: 에러 패턴 기반 문장 생성
+    if (mode === 'weakness_drill' && focusErrors.length > 0) {
+      // 약점 문자들을 포함한 훈련 문장 생성
+      const weakChars = focusErrors.map(e => e.expected)
+      const allSentences = lang === 'korean' ? sampleTexts.korean.sentences : sampleTexts.english.sentences
+      
+      // 약점 문자가 포함된 문장 우선 선택
+      const prioritized = allSentences.filter(s => 
+        weakChars.some(char => s.includes(char))
+      )
+      
+      // 추가 훈련용: 약점 문자 반복 패턴
+      const drillPatterns = weakChars.map(char => 
+        `${char} ${char} ${char} ${char} ${char}`
+      )
+      
+      const combined = [...drillPatterns, ...prioritized]
+      const shuffled = [...combined].sort(() => Math.random() - 0.5)
+      return shuffled.slice(0, count)
+    }
+    
     // 서버 데이터가 있으면 우선 사용 (문장 모드)
     if (serverItems.length > 0 && (mode === 'sentence' || mode === 'time_attack' || mode === 'accuracy_challenge')) {
       const contents = serverItems.map(item => item.content)
@@ -160,7 +201,7 @@ function PracticePage() {
     const sentences = sampleTexts[lang].sentences
     const shuffled = [...sentences].sort(() => Math.random() - 0.5)
     return shuffled.slice(0, count)
-  }, [settings, serverItems])
+  }, [settings, serverItems, focusErrors])
 
   // 현재 아이템 완료 -> 다음으로 이동
   const handleItemComplete = useCallback((stats: TypingStats, _reason?: string) => {

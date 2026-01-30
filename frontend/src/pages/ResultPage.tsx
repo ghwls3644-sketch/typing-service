@@ -1,7 +1,7 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState, useRef } from 'react'
 import type { PracticeMode } from '../types/practice'
-import { saveSession, getGuestSessionId, type SessionCreateData } from '../lib/typingApi'
+import { saveSessionWithBackup, getGuestSessionId, syncPendingSessions, type SessionCreateData } from '../lib/typingApi'
 import './ResultPage.css'
 
 interface ResultStats {
@@ -63,28 +63,31 @@ function ResultPage() {
         if (!stats || saveAttempted.current) return
         saveAttempted.current = true
         
+        // 먼저 대기 중인 세션 동기화 시도
+        syncPendingSessions().then(({ synced }) => {
+            if (synced > 0) console.warn(`${synced}개 대기 세션 동기화 완료`)
+        })
+        
         const saveResult = async () => {
             setSaveStatus('saving')
-            try {
-                const sessionData: SessionCreateData = {
-                    mode: 'practice',
-                    language: language === 'korean' ? 'ko' : 'en',
-                    text_content: text,
-                    duration_ms: Math.round(stats.time * 1000),
-                    input_length: stats.totalChars,
-                    correct_length: stats.correctChars,
-                    error_count: stats.errors,
-                    accuracy: stats.accuracy,
-                    wpm: stats.wpm,
-                    cpm: Math.round(stats.correctChars / (stats.time / 60)),
-                    metadata: metadata,
-                    guest_session_id: getGuestSessionId()
-                }
-                await saveSession(sessionData)
+            const sessionData: SessionCreateData = {
+                mode: 'practice',
+                language: language === 'korean' ? 'ko' : 'en',
+                text_content: text,
+                duration_ms: Math.round(stats.time * 1000),
+                input_length: stats.totalChars,
+                correct_length: stats.correctChars,
+                error_count: stats.errors,
+                accuracy: stats.accuracy,
+                wpm: stats.wpm,
+                cpm: Math.round(stats.correctChars / (stats.time / 60)),
+                metadata: metadata,
+                guest_session_id: getGuestSessionId()
+            }
+            const result = await saveSessionWithBackup(sessionData)
+            if (result) {
                 setSaveStatus('saved')
-                console.log('Session saved successfully')
-            } catch (err) {
-                console.warn('Failed to save session:', err)
+            } else {
                 setSaveStatus('error')
             }
         }
