@@ -1,6 +1,7 @@
-// 연습 모드 타입 정의
+// 연습 모드 타입 정의 (v4.0 스펙)
 
-export type PracticeMode = 'sentence' | 'word' | 'time_attack' | 'accuracy_challenge' | 'kor_drill' | 'weakness_drill'
+// 2개 모드만 지원 (v4.0)
+export type PracticeMode = 'word' | 'short'
 
 export interface ModeConfig {
   id: PracticeMode
@@ -13,17 +14,8 @@ export interface ModeConfig {
 export interface PracticeSettings {
   mode: PracticeMode
   language: 'korean' | 'english'
-  // 문장 연습
+  difficulty: 1 | 2 | 3  // v4.0: 3단계만
   itemsPerSession?: number
-  difficulty?: number
-  packId?: string
-  // 타임어택
-  timeLimitSec?: number
-  // 정확도 챌린지
-  maxErrors?: number
-  minAccuracy?: number
-  // 단어 연습
-  autoNextDelay?: number
 }
 
 export interface TypingStats {
@@ -51,60 +43,35 @@ export interface TypingResult {
   }
 }
 
-// 모드 설정 목록
+// 모드 설정 목록 (v4.0: 2개만)
 export const PRACTICE_MODES: ModeConfig[] = [
-  {
-    id: 'sentence',
-    name: '문장 연습',
-    description: '문장을 따라 치며 타자 실력을 향상시키세요',
-    icon: '📝',
-    available: true
-  },
-  {
-    id: 'time_attack',
-    name: '타임어택',
-    description: '제한 시간 내 최대한 많이 입력하세요',
-    icon: '⏱️',
-    available: true
-  },
-  {
-    id: 'accuracy_challenge',
-    name: '정확도 챌린지',
-    description: '오타 없이 정확하게 입력하세요',
-    icon: '🎯',
-    available: true
-  },
   {
     id: 'word',
     name: '단어 연습',
-    description: '단어 단위로 빠르게 연습하세요',
+    description: '단어 단위로 타자 실력을 향상시키세요',
     icon: '💬',
     available: true
   },
   {
-    id: 'kor_drill',
-    name: '한글 특화 드릴',
-    description: '받침, 겹받침 등 한글 패턴 훈련',
-    icon: '🇰🇷',
+    id: 'short',
+    name: '짧은 글 연습',
+    description: '속담을 따라 치며 문장 타이핑을 연습하세요',
+    icon: '📝',
     available: true
-  },
-  {
-    id: 'weakness_drill',
-    name: '약점 훈련',
-    description: '자주 틀리는 패턴을 집중 연습',
-    icon: '💪',
-    available: false // Phase B
   }
 ]
 
+// 난이도 설정
+export const DIFFICULTY_LEVELS = [
+  { value: 1, name: '초급', description: '짧고 쉬운 텍스트' },
+  { value: 2, name: '중급', description: '중간 길이 텍스트' },
+  { value: 3, name: '고급', description: '긴 텍스트' }
+] as const
+
 // 기본 설정
 export const DEFAULT_SETTINGS: PracticeSettings = {
-  mode: 'sentence',
+  mode: 'word',
   language: 'korean',
-  itemsPerSession: 5,
   difficulty: 1,
-  timeLimitSec: 60,
-  maxErrors: 5,
-  minAccuracy: 95,
-  autoNextDelay: 300
+  itemsPerSession: 10
 }

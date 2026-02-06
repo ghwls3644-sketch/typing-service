@@ -78,6 +78,29 @@ export async function fetchTextItems(packId?: number, language?: string): Promis
     return api.get<TextItem[]>('/texts/items/', params)
 }
 
+// v4.0 Practice API
+export interface PracticeItemsResponse {
+    items: string[]
+    pack_code: string | null
+    total_available: number
+    message?: string
+}
+
+export async function fetchPracticeItems(
+    mode: 'word' | 'short',
+    language: 'ko' | 'en',
+    difficulty: 1 | 2 | 3,
+    count: number = 10
+): Promise<PracticeItemsResponse> {
+    const params: Record<string, string> = {
+        mode,
+        language,
+        difficulty: String(difficulty),
+        count: String(count)
+    }
+    return api.get<PracticeItemsResponse>('/texts/items/practice_items/', params)
+}
+
 // Session APIs
 export async function saveSession(data: SessionCreateData): Promise<SessionResponse> {
     return api.post<SessionResponse>('/sessions/', data)

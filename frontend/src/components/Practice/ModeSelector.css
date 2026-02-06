@@ -49,8 +49,29 @@
 }
 
 .mode-card.selected {
-  border-color: var(--primary);
-  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--secondary-rgb), 0.1));
+  border: 4px solid #ffffff;
+  outline: 3px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.3);
+  transform: scale(1.02);
+}
+
+.mode-card.selected::before {
+  content: '✓';
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 24px;
+  height: 24px;
+  background: #ffffff;
+  color: #1a1a2e;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
 }
 
 .mode-card.disabled {
@@ -155,9 +176,14 @@
 }
 
 .setting-btn.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
+  background: transparent;
+  border: 3px solid #ffffff;
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 1px;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+  transform: scale(1.08);
 }
 
 /* 반응형 */
