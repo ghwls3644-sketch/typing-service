@@ -7,6 +7,18 @@ import { DEFAULT_SETTINGS, type PracticeMode, type PracticeSettings, type Typing
 import { fetchPracticeItems } from '../lib/typingApi'
 import './PracticePage.css'
 
+// Fallback 데이터 (컴포넌트 외부 - 서버 연결 실패 시 사용)
+const FALLBACK_DATA: Record<string, Record<string, string[]>> = {
+  word: {
+    korean: ['안녕', '반갑습니다', '타자연습', '키보드', '모니터', '컴퓨터', '프로그래밍', '개발자', '코딩', '알고리즘'],
+    english: ['hello', 'world', 'keyboard', 'typing', 'practice', 'computer', 'programming', 'developer', 'coding', 'algorithm']
+  },
+  short: {
+    korean: ['빠른 타자는 연습에서 나온다.', '정확한 타자가 빠른 타자보다 낫다.', '오늘도 열심히 연습하자!', '타자 연습은 꾸준함이 중요하다.', '손가락이 기억하는 타자를 목표로.'],
+    english: ['The quick brown fox jumps over the lazy dog.', 'Practice makes perfect.', 'Typing is an essential skill.', 'Keep calm and type on.', 'Every expert was once a beginner.']
+  }
+}
+
 type Phase = 'select' | 'practice'
 
 function PracticePage() {
@@ -98,10 +110,41 @@ function PracticePage() {
     onComplete: handleItemComplete
   })
 
-  // 연습 시작 (서버에서 데이터 로드)
-  const startPractice = useCallback(async () => {
+  // Fallback 데이터 가져오기
+  const getFallbackItems = () => {
+    const mode = settings.mode === 'word' ? 'word' : 'short'
+    const lang = settings.language === 'korean' ? 'korean' : 'english'
+    const items = [...(FALLBACK_DATA[mode]?.[lang] || [])]
+    console.log('[Fallback] mode:', mode, 'lang:', lang, 'items:', items.length)
+    // 셔플
+    return items.sort(() => Math.random() - 0.5).slice(0, settings.itemsPerSession || 10)
+  }
+
+  // 아이템으로 연습 시작
+  const beginPractice = (items: string[], warningMessage?: string) => {
+    if (warningMessage) {
+      setServerError(warningMessage)
+    } else {
+      setServerError(null)
+    }
+    setItemQueue(items)
+    setCurrentIndex(0)
+    setCurrentText(items[0])
+    setSessionStats({ wpm: 0, accuracy: 100, time: 0, correctChars: 0, totalChars: 0, errors: 0 })
+    setAllInputs('')
+    setPhase('practice')
+    setIsLoading(false)
+    reset()
+    setTimeout(() => inputRef.current?.focus(), 100)
+  }
+
+  // 연습 시작 (서버에서 데이터 로드, 실패 시 fallback)
+  const startPractice = async () => {
     setIsLoading(true)
     setServerError(null)
+    
+    // 먼저 fallback 데이터 준비
+    const fallbackItems = getFallbackItems()
     
     try {
       const language = settings.language === 'korean' ? 'ko' : 'en'
@@ -112,27 +155,23 @@ function PracticePage() {
         settings.itemsPerSession || 10
       )
       
-      if (response.items.length === 0) {
-        setServerError(response.message || '해당 조건의 콘텐츠가 없습니다.')
-        setIsLoading(false)
+      // 서버 응답이 있고 아이템이 있으면 사용
+      if (response.items && response.items.length > 0) {
+        beginPractice(response.items)
         return
       }
-      
-      setItemQueue(response.items)
-      setCurrentIndex(0)
-      setCurrentText(response.items[0])
-      setSessionStats({ wpm: 0, accuracy: 100, time: 0, correctChars: 0, totalChars: 0, errors: 0 })
-      setAllInputs('')
-      setPhase('practice')
-      reset()
-      setTimeout(() => inputRef.current?.focus(), 100)
     } catch (err) {
-      console.error('Failed to load practice items:', err)
-      setServerError('서버 연결 실패. 잠시 후 다시 시도해주세요.')
-    } finally {
+      console.warn('서버 연결 실패, fallback 사용:', err)
+    }
+    
+    // 서버 응답 없거나 실패 시 fallback 사용
+    if (fallbackItems.length > 0) {
+      beginPractice(fallbackItems, '기본 문장으로 연습합니다.')
+    } else {
+      setServerError('연습 데이터를 불러올 수 없습니다.')
       setIsLoading(false)
     }
-  }, [settings, reset])
+  }
 
   // 모드 변경
   const handleModeChange = (mode: PracticeMode) => {

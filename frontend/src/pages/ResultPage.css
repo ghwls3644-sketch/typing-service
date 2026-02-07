@@ -306,3 +306,119 @@
         width: 100%;
     }
 }
+
+/* ===== 챌린지 결과 스타일 ===== */
+.challenge-result {
+    background: linear-gradient(135deg, var(--bg-card), rgba(255, 107, 53, 0.05));
+}
+
+.result-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #ff6b35, #ff8c42);
+    color: white;
+    font-weight: 600;
+    border-radius: 20px;
+    margin-bottom: 1rem;
+}
+
+.new-record-banner {
+    background: linear-gradient(135deg, #ffd700, #ffb800);
+    color: #1a1a1a;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    animation: glow 1.5s ease-in-out infinite;
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+    50% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.8); }
+}
+
+.challenge-title {
+    background: linear-gradient(135deg, #ff6b35, #ff8c42);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.score-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.score-label {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.score-value {
+    font-size: 5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6b35, #ffd700);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+}
+
+.challenge-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.challenge-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 12px;
+}
+
+.challenge-stat .stat-icon {
+    font-size: 1.25rem;
+}
+
+.challenge-stat .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.challenge-stat .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* 챌린지 CTA (연습 결과에서 표시) */
+.challenge-cta {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: rgba(255, 107, 53, 0.1);
+    border: 1px solid rgba(255, 107, 53, 0.3);
+    border-radius: 12px;
+}
+
+.challenge-cta .btn {
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    .challenge-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .score-value {
+        font-size: 4rem;
+    }
+}

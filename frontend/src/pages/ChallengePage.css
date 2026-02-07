@@ -1,269 +1,310 @@
-/* 챌린지 헤더 */
 .challenge-page {
-    padding: var(--spacing-xl) 0;
+  padding: 1rem;
+  min-height: calc(100vh - 80px);
 }
 
-.challenge-header {
-    text-align: center;
-    margin-bottom: var(--spacing-xl);
-}
-
-.challenge-date {
-    color: var(--text-secondary);
-    font-size: 1rem;
-    margin-bottom: var(--spacing-sm);
-}
-
-.page-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-}
-
-/* 챌린지 카드 */
-.challenge-card {
-    background: var(--bg-card);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-2xl);
-    margin-bottom: var(--spacing-xl);
-}
-
-.challenge-badge {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-}
-
-.difficulty-badge,
-.type-badge {
-    padding: var(--spacing-xs) var(--spacing-md);
-    border-radius: var(--radius-md);
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.difficulty-badge {
-    color: white;
-}
-
-.type-badge {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
-}
-
-.challenge-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin-bottom: var(--spacing-sm);
-}
-
-.challenge-description {
-    color: var(--text-secondary);
-    font-size: 1.1rem;
-    line-height: 1.6;
-    margin-bottom: var(--spacing-xl);
-}
-
-/* 목표 */
-.challenge-targets {
-    margin-bottom: var(--spacing-xl);
-}
-
-.challenge-targets h3 {
-    font-size: 1.1rem;
-    margin-bottom: var(--spacing-md);
-}
-
-.targets-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: var(--spacing-md);
-}
-
-.target-item {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    text-align: center;
-}
-
-.target-value {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--color-primary);
-}
-
-.target-label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-/* 보상 */
-.challenge-reward {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(72, 187, 120, 0.1));
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md) var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
-}
-
-.reward-icon {
-    font-size: 1.5rem;
-}
-
-.reward-text {
-    font-weight: 600;
-    color: var(--color-success);
-}
-
-/* 참가 현황 */
-.challenge-stats {
-    display: flex;
-    justify-content: space-around;
-    padding-top: var(--spacing-lg);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.challenge-stats .stat {
-    text-align: center;
-}
-
-.challenge-stats .stat-value {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-}
-
-.challenge-stats .stat-label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-/* 내 진행 상황 */
-.my-progress-card {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(72, 187, 120, 0.05));
-    border: 2px solid var(--color-primary);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-xl);
-    margin-bottom: var(--spacing-xl);
-}
-
-.my-progress-card h3 {
-    margin-bottom: var(--spacing-lg);
-}
-
-.progress-items {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.progress-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-}
-
-.progress-header {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.9rem;
-}
-
-.progress-bar {
-    height: 12px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
-    border-radius: 6px;
-    transition: width 0.5s ease;
-}
-
-/* 액션 버튼 */
-.challenge-actions {
-    display: flex;
-    justify-content: center;
-    margin-bottom: var(--spacing-xl);
-}
-
-/* 안내 */
-.challenge-info {
-    padding: var(--spacing-lg);
-}
-
-.info-card {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md) var(--spacing-lg);
-}
-
-.info-icon {
-    font-size: 1.5rem;
-}
-
-.info-card p {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-/* 로딩 & 빈 상태 */
-.loading,
-.no-challenge {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: var(--spacing-2xl);
-    gap: var(--spacing-md);
-    min-height: 50vh;
+/* Loading */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem;
 }
 
 .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: var(--color-primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+  to { transform: rotate(360deg); }
 }
 
-.no-challenge-icon {
-    font-size: 4rem;
+/* Ready 화면 */
+.challenge-ready {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
-.no-challenge h2 {
-    color: var(--text-secondary);
+.challenge-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.challenge-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ff6b35, #ff8c42);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+
+.challenge-rule {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.load-error {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.best-record {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-secondary);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.best-label {
+  font-weight: 600;
+  color: #ffd700;
+}
+
+.best-score {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.best-combo {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.start-btn {
+  font-size: 1.2rem;
+  padding: 1rem 3rem;
+  margin-bottom: 2rem;
+}
+
+.challenge-tips {
+  background: var(--bg-secondary);
+  padding: 1.5rem;
+  border-radius: 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.challenge-tips h4 {
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+}
+
+.challenge-tips ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.challenge-tips li {
+  padding: 0.5rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.challenge-tips li::before {
+  content: '•';
+  color: var(--color-primary);
+  margin-right: 0.5rem;
+}
+
+/* Running 화면 */
+.challenge-hud {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.hud-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.hud-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.hud-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.hud-value.warning {
+  color: #ef4444;
+  animation: pulse 0.5s ease-in-out infinite;
+}
+
+.hud-value.combo-high {
+  color: #ff6b35;
+  text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* 텍스트 영역 */
+.challenge-text-area {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: text;
+  margin-bottom: 1.5rem;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.challenge-text-area:focus-within {
+  border-color: var(--color-primary);
+}
+
+.text-display {
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  transition: transform 0.1s;
+}
+
+.text-display.text-error {
+  animation: shake 0.12s ease-in-out;
+}
+
+.error-shake {
+  animation: shake 0.12s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.text-correct {
+  color: var(--color-success, #22c55e);
+}
+
+.text-incorrect {
+  color: #ef4444;
+  text-decoration: underline wavy;
+  text-decoration-color: #ef4444;
+}
+
+.text-pending {
+  color: var(--color-warning, #f59e0b);
+  opacity: 0.8;
+}
+
+.text-current {
+  background: var(--color-primary);
+  color: white;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.text-rest {
+  color: var(--text-secondary);
+}
+
+.challenge-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 하단 정보 */
+.challenge-footer {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.footer-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.footer-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.footer-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 그만두기 버튼 */
+.quit-btn {
+  display: block;
+  margin: 0 auto;
+  color: var(--text-secondary);
+}
+
+.quit-btn:hover {
+  color: #ef4444;
 }
 
 /* 반응형 */
-@media (max-width: 768px) {
-    .challenge-card {
-        padding: var(--spacing-lg);
-    }
-
-    .targets-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .challenge-stats {
-        flex-direction: column;
-        gap: var(--spacing-md);
-    }
+@media (max-width: 640px) {
+  .challenge-hud {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .hud-item {
+    flex: 1;
+    min-width: 80px;
+  }
+  
+  .text-display {
+    font-size: 1.5rem;
+  }
+  
+  .challenge-text-area {
+    padding: 2rem 1rem;
+  }
 }

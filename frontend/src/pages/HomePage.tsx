@@ -136,8 +136,8 @@ function HomePage() {
                             <span>연습 시작하기</span>
                             <span className="btn-icon">→</span>
                         </Link>
-                        <Link to="/leaderboard" className="btn btn-secondary btn-lg">
-                            🏆 랭킹 보기
+                        <Link to="/challenge" className="btn btn-warning btn-lg">
+                            🔥 60초 챌린지
                         </Link>
                     </div>
                 </div>

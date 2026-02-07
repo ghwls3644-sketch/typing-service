@@ -1,276 +1,267 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useChallengeEngine } from '../hooks/useChallengeEngine'
+import { saveChallengeResult, getChallengeBest } from '../lib/challengeStorage'
+import type { ChallengeStats, ChallengeBest } from '../types/challenge'
+import { CHALLENGE_DURATION_SEC } from '../types/challenge'
+import { fetchPracticeItems } from '../lib/typingApi'
 import './ChallengePage.css'
 
-interface Challenge {
-    id: number
-    title: string
-    description: string
-    challenge_type: string
-    challenge_type_display: string
-    difficulty: number
-    difficulty_display: string
-    target_wpm?: number
-    target_accuracy?: number
-    target_sessions?: number
-    target_time_minutes?: number
-    reward_points: number
-    participants_count: number
-    completed_count: number
-}
-
-interface MyProgress {
-    current_wpm?: number
-    current_accuracy?: number
-    current_sessions: number
-    status: string
-    progress_wpm?: number
-    progress_accuracy?: number
-    progress_sessions?: number
-}
-
-// Mock data for demo
-const getMockChallenge = (): Challenge => ({
-    id: 1,
-    title: '스피드 러너',
-    description: '오늘의 도전! 평균 WPM 80 이상을 달성하고 5회 이상 연습하세요.',
-    challenge_type: 'speed',
-    challenge_type_display: '속도 챌린지',
-    difficulty: 2,
-    difficulty_display: '보통',
-    target_wpm: 80,
-    target_sessions: 5,
-    reward_points: 150,
-    participants_count: 234,
-    completed_count: 89,
-})
+// Fallback 단어들 (서버 로딩 실패 시)
+const FALLBACK_WORDS = [
+  '안녕', '반갑습니다', '타자연습', '키보드', '모니터', '컴퓨터', '프로그래밍',
+  '개발자', '코딩', '알고리즘', '데이터', '인터넷', '소프트웨어', '하드웨어',
+  '네트워크', '서버', '클라이언트', '데이터베이스', '프론트엔드', '백엔드'
+]
 
 function ChallengePage() {
-    const [challenge, setChallenge] = useState<Challenge | null>(null)
-    const [myProgress, setMyProgress] = useState<MyProgress | null>(null)
-    const [isJoined, setIsJoined] = useState(false)
-    const [loading, setLoading] = useState(true)
-
-    useEffect(() => {
-        // Load today's challenge
-        setTimeout(() => {
-            setChallenge(getMockChallenge())
-            setLoading(false)
-        }, 500)
-    }, [])
-
-    const handleJoin = () => {
-        setIsJoined(true)
-        setMyProgress({
-            current_wpm: 0,
-            current_accuracy: 0,
-            current_sessions: 0,
-            status: 'in_progress',
-            progress_wpm: 0,
-            progress_accuracy: 100,
-            progress_sessions: 0,
-        })
-    }
-
-    const getDifficultyColor = (difficulty: number) => {
-        switch (difficulty) {
-            case 1: return 'var(--color-success)'
-            case 2: return 'var(--color-primary)'
-            case 3: return 'var(--color-warning, #f59e0b)'
-            case 4: return 'var(--color-error)'
-            default: return 'var(--text-secondary)'
+  const navigate = useNavigate()
+  const inputRef = useRef<HTMLInputElement>(null)
+  
+  // 콘텐츠 로딩 상태
+  const [items, setItems] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  
+  // 최고기록
+  const [best, setBest] = useState<ChallengeBest | null>(null)
+  
+  // 챌린지 엔진
+  const handleComplete = useCallback((stats: ChallengeStats) => {
+    // 결과 저장
+    saveChallengeResult(stats, CHALLENGE_DURATION_SEC * 1000)
+    
+    // 결과 페이지로 이동
+    navigate('/result', {
+      state: {
+        resultType: 'challenge',
+        stats,
+        durationMs: CHALLENGE_DURATION_SEC * 1000
+      }
+    })
+  }, [navigate])
+  
+  const {
+    phase,
+    currentText,
+    userInput,
+    stats,
+    remainingTime,
+    isError,
+    charStatuses,
+    start,
+    handleInput,
+    handleCompositionEnd,
+    reset
+  } = useChallengeEngine({
+    items,
+    onComplete: handleComplete
+  })
+  
+  // 콘텐츠 로딩
+  useEffect(() => {
+    const loadItems = async () => {
+      setIsLoading(true)
+      setLoadError(null)
+      
+      try {
+        // 서버에서 단어 로딩 (난이도 2, 한글, 200개)
+        const response = await fetchPracticeItems('word', 'ko', 2, 200)
+        
+        if (response.items.length > 0) {
+          // 셔플
+          const shuffled = [...response.items].sort(() => Math.random() - 0.5)
+          setItems(shuffled)
+        } else {
+          // Fallback
+          setItems([...FALLBACK_WORDS].sort(() => Math.random() - 0.5))
         }
+      } catch (err) {
+        console.warn('게임 콘텐츠 로딩 실패, fallback 사용:', err)
+        setItems([...FALLBACK_WORDS].sort(() => Math.random() - 0.5))
+        setLoadError('서버 연결 실패 - 기본 단어로 진행합니다')
+      } finally {
+        setIsLoading(false)
+      }
     }
-
-    const getDifficultyIcon = (difficulty: number) => {
-        switch (difficulty) {
-            case 1: return '⭐'
-            case 2: return '⭐⭐'
-            case 3: return '⭐⭐⭐'
-            case 4: return '⭐⭐⭐⭐'
-            default: return ''
-        }
-    }
-
-    const getChallengeTypeIcon = (type: string) => {
-        switch (type) {
-            case 'speed': return '⚡'
-            case 'accuracy': return '🎯'
-            case 'endurance': return '🔥'
-            case 'special': return '🌟'
-            default: return '🏆'
-        }
-    }
-
-    if (loading) {
-        return (
-            <div className="challenge-page container">
-                <div className="loading">
-                    <div className="loading-spinner"></div>
-                    <span>오늘의 챌린지 로딩 중...</span>
-                </div>
-            </div>
-        )
-    }
-
-    if (!challenge) {
-        return (
-            <div className="challenge-page container">
-                <div className="no-challenge">
-                    <span className="no-challenge-icon">😴</span>
-                    <h2>오늘의 챌린지가 없습니다</h2>
-                    <p>내일 다시 확인해주세요!</p>
-                </div>
-            </div>
-        )
-    }
-
+    
+    loadItems()
+    
+    // 최고기록 로딩
+    setBest(getChallengeBest())
+  }, [])
+  
+  // Start 클릭 핸들러
+  const handleStart = () => {
+    start()
+    setTimeout(() => {
+      inputRef.current?.focus()
+    }, 50)
+  }
+  
+  // 다시하기
+  const handleRetry = () => {
+    reset()
+    setBest(getChallengeBest()) // 최고기록 갱신
+  }
+  
+  // 텍스트 렌더링 (각 글자별 상태 표시)
+  const renderText = () => {
     return (
-        <div className="challenge-page container">
-            <header className="challenge-header">
-                <div className="challenge-date">
-                    {new Date().toLocaleDateString('ko-KR', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        weekday: 'long'
-                    })}
-                </div>
-                <h1 className="page-title">
-                    {getChallengeTypeIcon(challenge.challenge_type)} 오늘의 챌린지
-                </h1>
-            </header>
-
-            {/* 챌린지 카드 */}
-            <div className="challenge-card">
-                <div className="challenge-badge">
-                    <span
-                        className="difficulty-badge"
-                        style={{ background: getDifficultyColor(challenge.difficulty) }}
-                    >
-                        {getDifficultyIcon(challenge.difficulty)} {challenge.difficulty_display}
-                    </span>
-                    <span className="type-badge">{challenge.challenge_type_display}</span>
-                </div>
-
-                <h2 className="challenge-title">{challenge.title}</h2>
-                <p className="challenge-description">{challenge.description}</p>
-
-                {/* 목표 */}
-                <div className="challenge-targets">
-                    <h3>🎯 목표</h3>
-                    <div className="targets-grid">
-                        {challenge.target_wpm && (
-                            <div className="target-item">
-                                <span className="target-value">{challenge.target_wpm}</span>
-                                <span className="target-label">WPM 이상</span>
-                            </div>
-                        )}
-                        {challenge.target_accuracy && (
-                            <div className="target-item">
-                                <span className="target-value">{challenge.target_accuracy}%</span>
-                                <span className="target-label">정확도 이상</span>
-                            </div>
-                        )}
-                        {challenge.target_sessions && (
-                            <div className="target-item">
-                                <span className="target-value">{challenge.target_sessions}회</span>
-                                <span className="target-label">세션 완료</span>
-                            </div>
-                        )}
-                        {challenge.target_time_minutes && (
-                            <div className="target-item">
-                                <span className="target-value">{challenge.target_time_minutes}분</span>
-                                <span className="target-label">연습 시간</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* 보상 */}
-                <div className="challenge-reward">
-                    <span className="reward-icon">🎁</span>
-                    <span className="reward-text">완료 시 {challenge.reward_points} 포인트</span>
-                </div>
-
-                {/* 참가 현황 */}
-                <div className="challenge-stats">
-                    <div className="stat">
-                        <span className="stat-value">{challenge.participants_count}</span>
-                        <span className="stat-label">참가자</span>
-                    </div>
-                    <div className="stat">
-                        <span className="stat-value">{challenge.completed_count}</span>
-                        <span className="stat-label">완료</span>
-                    </div>
-                    <div className="stat">
-                        <span className="stat-value">
-                            {Math.round((challenge.completed_count / challenge.participants_count) * 100) || 0}%
-                        </span>
-                        <span className="stat-label">완료율</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* 내 진행 상황 */}
-            {isJoined && myProgress && (
-                <div className="my-progress-card">
-                    <h3>📊 내 진행 상황</h3>
-                    <div className="progress-items">
-                        {challenge.target_wpm && (
-                            <div className="progress-item">
-                                <div className="progress-header">
-                                    <span>WPM</span>
-                                    <span>{myProgress.current_wpm || 0} / {challenge.target_wpm}</span>
-                                </div>
-                                <div className="progress-bar">
-                                    <div
-                                        className="progress-fill"
-                                        style={{ width: `${myProgress.progress_wpm || 0}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        )}
-                        {challenge.target_sessions && (
-                            <div className="progress-item">
-                                <div className="progress-header">
-                                    <span>세션</span>
-                                    <span>{myProgress.current_sessions} / {challenge.target_sessions}</span>
-                                </div>
-                                <div className="progress-bar">
-                                    <div
-                                        className="progress-fill"
-                                        style={{ width: `${myProgress.progress_sessions || 0}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* 액션 버튼 */}
-            <div className="challenge-actions">
-                {!isJoined ? (
-                    <button className="btn btn-primary btn-lg" onClick={handleJoin}>
-                        🚀 챌린지 참가
-                    </button>
-                ) : (
-                    <Link to="/practice" className="btn btn-primary btn-lg">
-                        ⌨️ 연습 시작하기
-                    </Link>
-                )}
-            </div>
-
-            {/* 안내 */}
-            <div className="challenge-info">
-                <div className="info-card">
-                    <span className="info-icon">💡</span>
-                    <p>챌린지에 참가하고 연습을 시작하면 자동으로 진행 상황이 업데이트됩니다!</p>
-                </div>
-            </div>
-        </div>
+      <>
+        {currentText.split('').map((char, i) => {
+          let className = 'text-rest'
+          
+          if (i < userInput.length) {
+            // 사용자가 입력한 글자
+            const status = charStatuses[i]
+            if (status === 'correct') {
+              className = 'text-correct'
+            } else if (status === 'incorrect') {
+              className = 'text-incorrect'
+            } else {
+              className = 'text-pending'  // 조합 중
+            }
+          } else if (i === userInput.length) {
+            // 현재 입력해야 할 글자
+            className = 'text-current'
+          }
+          
+          return (
+            <span key={i} className={className}>{char}</span>
+          )
+        })}
+      </>
     )
+  }
+  
+  // 시간 포맷
+  const formatTime = (seconds: number) => {
+    const s = Math.ceil(seconds)
+    return `${s}초`
+  }
+  
+  // 로딩 중
+  if (isLoading) {
+    return (
+      <div className="challenge-page container">
+        <div className="loading">
+          <div className="loading-spinner"></div>
+          <span>게임 준비 중...</span>
+        </div>
+      </div>
+    )
+  }
+  
+  // Ready 화면
+  if (phase === 'ready') {
+    return (
+      <div className="challenge-page container">
+        <div className="challenge-ready">
+          <div className="challenge-icon">🔥</div>
+          <h1 className="challenge-title">60초 챌린지</h1>
+          <p className="challenge-rule">
+            60초 동안 최대한 정확하게 타이핑하세요!<br/>
+            콤보를 쌓으면 점수가 올라갑니다.
+          </p>
+          
+          {loadError && (
+            <div className="load-error">{loadError}</div>
+          )}
+          
+          {best && (
+            <div className="best-record">
+              <span className="best-label">🏆 최고기록</span>
+              <span className="best-score">{best.bestScore}점</span>
+              <span className="best-combo">최대 {best.bestMaxCombo}콤보</span>
+            </div>
+          )}
+          
+          <button className="btn btn-primary btn-lg start-btn" onClick={handleStart}>
+            🚀 시작하기
+          </button>
+          
+          <div className="challenge-tips">
+            <h4>💡 팁</h4>
+            <ul>
+              <li>정확하게 입력하면 콤보가 쌓입니다</li>
+              <li>20콤보마다 점수 배율이 올라갑니다 (최대 2배)</li>
+              <li>오타 시 -5점, 콤보 초기화</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // Running 화면
+  return (
+    <div className={`challenge-page container ${isError ? 'error-shake' : ''}`}>
+      {/* HUD */}
+      <div className="challenge-hud">
+        <div className="hud-item hud-time">
+          <span className="hud-label">⏱️ 남은 시간</span>
+          <span className={`hud-value ${remainingTime <= 10 ? 'warning' : ''}`}>
+            {formatTime(remainingTime)}
+          </span>
+        </div>
+        <div className="hud-item hud-score">
+          <span className="hud-label">🏆 점수</span>
+          <span className="hud-value">{stats.score}</span>
+        </div>
+        <div className="hud-item hud-combo">
+          <span className="hud-label">🔥 콤보</span>
+          <span className={`hud-value ${stats.combo >= 20 ? 'combo-high' : ''}`}>
+            {stats.combo}
+          </span>
+        </div>
+        <div className="hud-item hud-max-combo">
+          <span className="hud-label">⭐ 최대콤보</span>
+          <span className="hud-value">{stats.maxCombo}</span>
+        </div>
+      </div>
+      
+      {/* 텍스트 표시 영역 */}
+      <div className="challenge-text-area" onClick={() => inputRef.current?.focus()}>
+        <div className={`text-display ${isError ? 'text-error' : ''}`}>
+          {renderText()}
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          className="challenge-input"
+          value={userInput}
+          onChange={(e) => handleInput(e.target.value)}
+          onCompositionEnd={handleCompositionEnd}
+          autoFocus
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+        />
+      </div>
+      
+      {/* 하단 정보 */}
+      <div className="challenge-footer">
+        <div className="footer-stat">
+          <span className="footer-label">WPM</span>
+          <span className="footer-value">{stats.wpm}</span>
+        </div>
+        <div className="footer-stat">
+          <span className="footer-label">정확도</span>
+          <span className="footer-value">{stats.accuracy}%</span>
+        </div>
+        <div className="footer-stat">
+          <span className="footer-label">오타</span>
+          <span className="footer-value">{stats.errors}</span>
+        </div>
+      </div>
+      
+      {/* 그만두기 버튼 */}
+      <button className="btn btn-ghost quit-btn" onClick={handleRetry}>
+        ❌ 그만두기
+      </button>
+    </div>
+  )
 }
 
 export default ChallengePage
