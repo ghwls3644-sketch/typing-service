@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import ModeSelector from '../components/Practice/ModeSelector'
 import ModeSettings from '../components/Practice/ModeSettings'
 import { useTypingEngine } from '../hooks/useTypingEngine'
@@ -23,11 +23,15 @@ type Phase = 'select' | 'practice'
 
 function PracticePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const isChallengeMode = location.state?.challengeMode || false
+  const challengeId = location.state?.challengeId
   
   // 단계: select(모드 선택) -> practice(연습 중)
-  const [phase, setPhase] = useState<Phase>('select')
+  // 챌린지 모드면 바로 연습 단계로 시작
+  const [phase, setPhase] = useState<Phase>(isChallengeMode ? 'practice' : 'select')
   const [settings, setSettings] = useState<PracticeSettings>(DEFAULT_SETTINGS)
   
   // 아이템 큐 시스템
@@ -73,7 +77,11 @@ function PracticePage() {
         }
         navigate('/result', {
           state: {
+            resultType: isChallengeMode ? 'challenge' : 'practice',
+            isBlindMode: isChallengeMode ? settings.isBlindMode : undefined,
+            challengeId: isChallengeMode ? challengeId : undefined,
             stats: finalStats,
+            durationMs: finalStats.time * 1000,
             text: itemQueue.join(settings.mode === 'word' ? ' ' : '\n'),
             userInput: allInputs + (allInputs ? ' ' : '') + userInput,
             language: settings.language,
@@ -174,6 +182,15 @@ function PracticePage() {
     }
   }
 
+  // 챌린지 모드 초기화 효과
+  useEffect(() => {
+    if (isChallengeMode && phase === 'practice' && itemQueue.length === 0 && !isLoading) {
+      // 챌린지용 설정으로 강제 시작 (예: 짧은 글, 고급 등 - 실제론 서버가 주는 대로 해야 하지만 일단 기본값으로)
+      // 주의: 무한 루프 방지를 위해 itemQueue 체크
+      startPractice()
+    }
+  }, [isChallengeMode]) // phase, itemQueue 등은 의존성에서 제외하여 최초 1회만 실행 유도
+
   // 모드 변경
   const handleModeChange = (mode: PracticeMode) => {
     setSettings(prev => ({ ...prev, mode }))
@@ -205,8 +222,12 @@ function PracticePage() {
 
   // 모드 선택으로 돌아가기
   const handleBackToSelect = () => {
-    setPhase('select')
-    reset()
+    if (isChallengeMode) {
+      navigate('/')
+    } else {
+      setPhase('select')
+      reset()
+    }
   }
 
   // 문자 렌더링
@@ -214,7 +235,11 @@ function PracticePage() {
     return currentText.split('').map((char, index) => {
       let className = 'char'
       if (index < userInput.length) {
-        className += userInput[index] === char ? ' correct' : ' incorrect'
+        if (settings.isBlindMode) {
+            className += ' typed' // 중립적인 스타일
+        } else {
+            className += userInput[index] === char ? ' correct' : ' incorrect'
+        }
       } else if (index === userInput.length) {
         className += ' current'
       }
@@ -271,13 +296,16 @@ function PracticePage() {
 
   // 연습 화면
   return (
-    <div className="practice-page container">
+    <div className={`practice-page container ${isChallengeMode ? 'challenge-mode' : ''}`}>
       {/* 헤더 영역 */}
       <div className="practice-header">
         <button className="btn btn-ghost btn-back" onClick={handleBackToSelect}>
-          ← 모드 선택
+          ← {isChallengeMode ? '홈으로' : '모드 선택'}
         </button>
-        <h1>{getModeName()}</h1>
+        <h1>
+            {getModeName()} 
+            {isChallengeMode && <span className="badge badge-warning ml-2">🔥 데일리 챌린지</span>}
+        </h1>
         <div className="mode-badge-header">
           {settings.language === 'korean' ? '🇰🇷 한글' : '🇺🇸 영어'} | {getDifficultyName()}
         </div>

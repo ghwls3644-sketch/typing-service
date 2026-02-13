@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import './HomePage.css'
 import { storage } from '../lib/utils'
 import { fetchDashboardOverview, getGuestSessionId, syncPendingSessions, fetchDailyChallenge, joinDailyChallenge } from '../lib/typingApi'
 import type { DailyChallengeInfo, ChallengeProgress } from '../lib/typingApi'
 
 function HomePage() {
+    const navigate = useNavigate()
     const [stats, setStats] = useState({
         currentStreak: 0,
         longestStreak: 0,
@@ -86,8 +87,13 @@ function HomePage() {
         const loadDailyChallenge = async () => {
             try {
                 const guestId = getGuestSessionId()
+                console.log('[DEBUG] guestId sent to API:', guestId)
                 const challenge = await fetchDailyChallenge(guestId)
                 setDailyChallenge(challenge)
+                // 이미 참가 중이면 진행률 세팅
+                if (challenge.my_progress) {
+                    setChallengeProgress(challenge.my_progress)
+                }
             } catch {
                 // 챌린지가 없으면 조용히 무시
             }
@@ -249,13 +255,23 @@ function HomePage() {
                         </div>
 
                         {challengeProgress ? (
-                            <div className="dc-progress">
-                                <div className="dc-progress-bar">
-                                    <div className="dc-progress-fill" style={{ width: `${Math.max(challengeProgress.progress_sessions, challengeProgress.progress_wpm, challengeProgress.progress_accuracy)}%` }} />
+                            <div className="dc-progress-container">
+                                <div className="dc-progress">
+                                    <div className="dc-progress-bar">
+                                        <div className="dc-progress-fill" style={{ width: `${Math.max(challengeProgress.progress_sessions, challengeProgress.progress_wpm, challengeProgress.progress_accuracy)}%` }} />
+                                    </div>
+                                    <span className="dc-progress-text">
+                                        {challengeProgress.status === 'completed' ? '✅ 완료!' : `${challengeProgress.current_sessions}/${challengeProgress.target_sessions} 세션`}
+                                    </span>
                                 </div>
-                                <span className="dc-progress-text">
-                                    {challengeProgress.status === 'completed' ? '✅ 완료!' : `${challengeProgress.current_sessions}/${challengeProgress.target_sessions} 세션`}
-                                </span>
+                                {challengeProgress.status !== 'completed' && (
+                                    <button 
+                                        className="btn btn-primary btn-sm dc-start-btn"
+                                        onClick={() => navigate('/practice', { state: { challengeMode: true, challengeId: dailyChallenge.id } })}
+                                    >
+                                        ▶️ 시작
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <button
@@ -264,8 +280,11 @@ function HomePage() {
                                     setIsJoining(true)
                                     try {
                                         const guestId = getGuestSessionId()
+                                        console.log('[DEBUG] guestId sent to API:', guestId)
                                         const progress = await joinDailyChallenge(dailyChallenge.id, guestId)
                                         setChallengeProgress(progress)
+                                        // 참가 즉시 연습 페이지로 이동
+                                        navigate('/practice', { state: { challengeMode: true, challengeId: dailyChallenge.id } })
                                     } catch { /* silent */ }
                                     setIsJoining(false)
                                 }}

@@ -1,9 +1,9 @@
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState, useRef } from 'react'
-import type { PracticeMode } from '../types/practice'
+import type { PracticeMode, PracticeSettings } from '../types/practice'
 import type { ChallengeStats } from '../types/challenge'
-import { saveSessionWithBackup, getGuestSessionId, syncPendingSessions, type SessionCreateData } from '../lib/typingApi'
-import { getChallengeBest } from '../lib/challengeStorage'
+import { saveSessionWithBackup, getGuestSessionId, syncPendingSessions, submitDailyChallenge, type SessionCreateData } from '../lib/typingApi'
+import { getChallengeBest, saveChallengeResult } from '../lib/challengeStorage'
 import { storage } from '../lib/utils'
 import './ResultPage.css'
 
@@ -36,6 +36,7 @@ interface PracticeLocationState {
             fail_reason?: string | null
         }
     }
+    settings: PracticeSettings
 }
 
 // 챌린지 결과 state
@@ -44,6 +45,12 @@ interface ChallengeLocationState {
     stats: ChallengeStats
     durationMs: number
     isBlindMode?: boolean
+    challengeId?: number
+    text: string
+    userInput: string
+    language: 'korean' | 'english'
+    mode: PracticeMode
+    settings: PracticeSettings
 }
 
 type LocationState = PracticeLocationState | ChallengeLocationState
@@ -78,24 +85,79 @@ function ResultPage() {
 
 // ===== 챌린지 결과 컴포넌트 =====
 function ChallengeResult({ state }: { state: ChallengeLocationState }) {
-    const { stats, durationMs, isBlindMode } = state
+    const { stats, durationMs, isBlindMode, challengeId, text, userInput, language, mode, settings } = state
+    // stats가 PracticeStats일 경우 score가 없을 수 있음 (계산 필요)
+    const score = (stats as any).score ?? Math.round(stats.wpm * 10 + stats.accuracy * 5)
+    // stats를 ChallengeStats로 보정
+    // const displayStats = { ...stats, score }
+
     const best = getChallengeBest()
-    const isNewRecord = best && stats.score === best.bestScore && Date.now() - best.updatedAt < 5000
+    const isNewRecord = best && score > best.bestScore // 점수 기준 비교
     const historySaved = useRef(false)
 
-    // 챌린지 결과를 typingHistory에 저장 (홈페이지 대시보드용)
+    // 챌린지 결과 처리 (로컬 저장 + 서버 제출)
     useEffect(() => {
         if (!stats || historySaved.current) return
         historySaved.current = true
-        const history = storage.get<{ date: string; time: number; wpm: number; accuracy: number }[]>('typingHistory', [])
+
+        // 1. 로컬 히스토리 저장 (대시보드용)
+        const history = storage.get<{ 
+            id: string; date: string; time: number; wpm: number; accuracy: number; 
+            isBlindMode?: boolean; language?: string; text?: string 
+        }[]>('typingHistory', [])
+        
         history.push({
+            id: Date.now().toString(),
             date: new Date().toISOString(),
             time: durationMs / 1000,
             wpm: stats.wpm,
             accuracy: stats.accuracy,
+            isBlindMode,
+            language,
+            text: text.slice(0, 50) + (text.length > 50 ? '...' : '')
         })
         storage.set('typingHistory', history)
-    }, [stats, durationMs])
+
+        // 2. 서버 제출 (챌린지 ID가 있을 경우)
+        if (challengeId) {
+            submitDailyChallenge(
+                challengeId,
+                stats.wpm,
+                stats.accuracy,
+                getGuestSessionId()
+            ).then(progress => {
+                console.log('✅ 챌린지 결과 제출 완료:', progress)
+            }).catch(err => {
+                console.error('❌ 챌린지 제출 실패:', err)
+            })
+        }
+
+        // 2.5 로컬 히스토리 저장 (추가)
+        saveChallengeResult(stats, durationMs, isBlindMode)
+
+        // 3. 세션 기록 저장 (TypingSession)
+        const sessionData: SessionCreateData = {
+            mode: 'challenge',
+            language: language === 'korean' ? 'ko' : 'en',
+            text_content: text,
+            duration_ms: durationMs,
+            input_length: (stats as any).totalChars || 0,
+            correct_length: (stats as any).correctChars || 0,
+            error_count: stats.errors,
+            accuracy: stats.accuracy,
+            wpm: stats.wpm,
+            cpm: Math.round(((stats as any).correctChars || 0) / (durationMs / 60000)) || 0,
+            metadata: {
+                challengeId,
+                isBlindMode,
+                settings
+            },
+            guest_session_id: getGuestSessionId()
+        }
+        saveSessionWithBackup(sessionData).then(res => {
+            if (res) console.log('✅ 챌린지 세션 저장 완료')
+        })
+    }, [stats, durationMs, challengeId])
     
     // 오답 로그 (중복 제거 및 카운팅)
     const errorAnalysis = useMemo(() => {
@@ -149,7 +211,7 @@ function ChallengeResult({ state }: { state: ChallengeLocationState }) {
                 {/* 점수 강조 */}
                 <div className="score-section">
                     <span className="score-label">최종 점수</span>
-                    <span className="score-value">{stats.score}</span>
+                    <span className="score-value">{score.toLocaleString()}</span>
                 </div>
                 
                 {/* 주요 통계 */}
@@ -219,7 +281,7 @@ function ChallengeResult({ state }: { state: ChallengeLocationState }) {
 
 // ===== 연습 결과 컴포넌트 =====
 function PracticeResult({ state }: { state: PracticeLocationState }) {
-    const { stats, text, userInput, language, mode, metadata } = state
+    const { stats, text, userInput, language, mode, metadata, settings } = state
     
     // 세션 저장 상태
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -247,7 +309,10 @@ function PracticeResult({ state }: { state: PracticeLocationState }) {
                 accuracy: stats.accuracy,
                 wpm: stats.wpm,
                 cpm: Math.round(stats.correctChars / (stats.time / 60)),
-                metadata: metadata,
+                metadata: {
+                    ...metadata,
+                    isBlindMode: settings.isBlindMode
+                },
                 guest_session_id: getGuestSessionId()
             }
             const result = await saveSessionWithBackup(sessionData)
@@ -318,7 +383,7 @@ function PracticeResult({ state }: { state: PracticeLocationState }) {
     }
 
     const getModeName = (m?: PracticeMode) => {
-        const names: Record<PracticeMode, string> = {
+        const names: Record<string, string> = {
             sentence: '문장 연습',
             word: '단어 연습',
             time_attack: '타임어택',
@@ -429,11 +494,6 @@ function PracticeResult({ state }: { state: PracticeLocationState }) {
                         </Link>
                     </div>
                 )}
-
-                <div className="practiced-text">
-                    <h3>연습한 문장</h3>
-                    <p>"{text}"</p>
-                </div>
 
                 {/* 챌린지 CTA - 연습 결과에서만 표시 */}
                 <div className="challenge-cta">

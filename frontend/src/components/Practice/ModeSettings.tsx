@@ -63,6 +63,20 @@ function ModeSettings({ mode, settings, onSettingsChange }: ModeSettingsProps) {
             ))}
           </div>
         </div>
+
+        {/* 특수 모드 설정 */}
+        <div className="setting-item">
+          <span className="setting-label">특수 모드</span>
+          <div className="setting-options">
+            <button
+              className={`setting-btn ${settings.isBlindMode ? 'active' : ''}`}
+              onClick={() => onSettingsChange({ isBlindMode: !settings.isBlindMode })}
+              title="입력할 때 원본 텍스트가 숨겨집니다"
+            >
+              🕶️ 블라인드
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

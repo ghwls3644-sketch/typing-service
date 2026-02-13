@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { getChallengeBest, getChallengeHistory } from '../lib/challengeStorage'
 import { exportSessions, importSessions, getGuestSessionId } from '../lib/typingApi'
+import { storage } from '../lib/utils'
 import type { ExportData } from '../lib/typingApi'
 import type { ChallengeSessionLocal, ChallengeBest } from '../types/challenge'
 import './HistoryPage.css'
@@ -12,8 +13,9 @@ interface HistoryItem {
     wpm: number
     accuracy: number
     time: number
-    language: 'korean' | 'english'
+    language: 'korean' | 'english' | 'unknown'
     text: string
+    isBlindMode?: boolean
 }
 
 type TabType = 'practice' | 'challenge'
@@ -67,38 +69,21 @@ function HistoryPage() {
         setTimeout(() => setImportStatus(null), 4000)
     }
 
-    // 연습 히스토리 로드 (샘플 데이터)
+    // 연습 히스토리 로드 (로컬 스토리지)
     useEffect(() => {
-        const sampleHistory: HistoryItem[] = [
-            {
-                id: '1',
-                date: '2026-02-07 14:00',
-                wpm: 75,
-                accuracy: 96,
-                time: 45.2,
-                language: 'korean',
-                text: '하늘 아래 첫 동네에 봄이 찾아왔다.'
-            },
-            {
-                id: '2',
-                date: '2026-02-07 13:30',
-                wpm: 82,
-                accuracy: 94,
-                time: 38.5,
-                language: 'english',
-                text: 'The quick brown fox jumps over the lazy dog.'
-            },
-            {
-                id: '3',
-                date: '2026-02-07 13:00',
-                wpm: 68,
-                accuracy: 98,
-                time: 52.1,
-                language: 'korean',
-                text: '타자 연습은 꾸준히 하면 실력이 늘어납니다.'
-            }
-        ]
-        setHistory(sampleHistory)
+        const storedHistory = storage.get<any[]>('typingHistory', [])
+        // 데이터 정규화
+        const normalized = storedHistory.map((item, index) => ({
+            id: item.id || `legacy-${index}`,
+            date: item.date,
+            wpm: item.wpm,
+            accuracy: item.accuracy,
+            time: item.time,
+            language: item.language || 'unknown',
+            text: item.text || '연습 기록',
+            isBlindMode: item.isBlindMode // Add this to HistoryItem interface first?
+        })).reverse() // 최신순 정렬
+        setHistory(normalized)
     }, [])
 
     // 챌린지 데이터 로드
@@ -249,6 +234,9 @@ function HistoryPage() {
                                         <span className="history-language">
                                             {item.language === 'korean' ? '🇰🇷' : '🇺🇸'}
                                         </span>
+                                        {item.isBlindMode && (
+                                            <span className="badge badge-sm badge-ghost ml-2" title="블라인드 모드">🕶️</span>
+                                        )}
                                     </div>
                                     <div className="history-item-stats">
                                         <div className="history-stat">
@@ -316,6 +304,9 @@ function HistoryPage() {
                                     <div key={session.id} className="challenge-history-item">
                                         <div className="challenge-history-date">
                                             {formatDate(session.playedAt)}
+                                            {session.isBlindMode && (
+                                                <span className="badge badge-sm badge-ghost ml-2" title="블라인드 모드">🕶️</span>
+                                            )}
                                         </div>
                                         <div className="challenge-history-stats">
                                             <span className="ch-score">{session.extra.score}점</span>

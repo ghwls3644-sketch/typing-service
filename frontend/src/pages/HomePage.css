@@ -423,8 +423,19 @@
     color: var(--text-secondary);
 }
 
-.dc-progress {
+.dc-progress-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
     margin-bottom: var(--spacing-md);
+}
+
+.dc-progress {
+    margin-bottom: 0;
+}
+
+.dc-start-btn {
+    width: 100%;
 }
 
 .dc-progress-bar {

@@ -16,6 +16,7 @@ export interface PracticeSettings {
   language: 'korean' | 'english'
   difficulty: 1 | 2 | 3  // v4.0: 3단계만
   itemsPerSession?: number
+  isBlindMode?: boolean
 }
 
 export interface TypingStats {
