@@ -9,6 +9,12 @@ export interface ChallengeStats {
   correctChars: number
   totalInputs: number
   errors: number
+  errorLog: ErrorLogEntry[]
+}
+
+export interface ErrorLogEntry {
+  word: string
+  typed: string
 }
 
 export interface ChallengeSessionLocal {
@@ -47,6 +53,7 @@ export interface ChallengeResultState {
   resultType: 'challenge'
   stats: ChallengeStats
   durationMs: number
+  isBlindMode?: boolean
 }
 
 // 연습 결과와 통합된 타입

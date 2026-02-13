@@ -25,6 +25,7 @@ interface UseChallengeEngineReturn {
   handleInput: (value: string) => void
   handleCompositionEnd: () => void  // 한글 조합 완료 시 호출
   reset: () => void
+  moveToNext: (finalInput?: string) => void
 }
 
 const INITIAL_STATS: ChallengeStats = {
@@ -35,7 +36,8 @@ const INITIAL_STATS: ChallengeStats = {
   accuracy: 100,
   correctChars: 0,
   totalInputs: 0,
-  errors: 0
+  errors: 0,
+  errorLog: []
 }
 
 export function useChallengeEngine({
@@ -55,12 +57,18 @@ export function useChallengeEngine({
   const isComposingRef = useRef(false)
   const errorTimeoutRef = useRef<number | null>(null)
   const verifiedLengthRef = useRef(0)  // 검증 완료된 글자 수
+  const phaseRef = useRef<ChallengePhase>('ready')
+
+  // phaseRef 동기화
+  useEffect(() => {
+    phaseRef.current = phase
+  }, [phase])
   
   const currentText = items[currentIndex] || ''
   
   // 게임 종료 처리
   const finishGame = useCallback(() => {
-    if (phase !== 'running') return
+    console.log('🏁 finishGame called. Type of onComplete:', typeof onComplete)
     
     setPhase('finished')
     if (timerRef.current) {
@@ -68,12 +76,27 @@ export function useChallengeEngine({
       timerRef.current = null
     }
     
+    console.log('✨ Setting stats and calling onComplete')
     // 최종 통계로 콜백 호출
     setStats(prev => {
-      onComplete?.(prev)
+      console.log('📊 calling onComplete with stats:', prev)
+      if (onComplete) {
+        onComplete(prev)
+      } else {
+        console.error('❌ onComplete is undefined!')
+      }
       return prev
     })
-  }, [phase, onComplete])
+  }, [onComplete])
+  
+  // 게임 종료 체크 (Timer Effect)
+  useEffect(() => {
+    // console.log('Timer check:', remainingTime, phase)
+    if (phase === 'running' && remainingTime <= 0) {
+      console.log('⏰ Timer ended (useEffect). calling finishGame')
+      finishGame()
+    }
+  }, [phase, remainingTime, finishGame])
   
   // 타이머 시작
   const start = useCallback(() => {
@@ -85,19 +108,39 @@ export function useChallengeEngine({
     verifiedLengthRef.current = 0
     setCharStatuses([])
     
+    // 기존 타이머 제거
+    if (timerRef.current) clearInterval(timerRef.current)
+
+    console.log('🏁 Game Started')
+
     timerRef.current = window.setInterval(() => {
       const elapsed = (Date.now() - (startTimeRef.current || Date.now())) / 1000
       const remaining = Math.max(0, CHALLENGE_DURATION_SEC - elapsed)
       setRemainingTime(remaining)
       
-      if (remaining <= 0) {
-        finishGame()
-      }
+      // setInterval에서는 state update만 하고, 종료 체크는 useEffect에서 함
     }, 100)
-  }, [phase, items.length, finishGame])
+  }, [phase, items.length])
   
   // 다음 텍스트로 이동
-  const moveToNext = useCallback(() => {
+  const moveToNext = useCallback((finalInput?: string) => {
+    // 오답 기록 (단어 단위)
+    if (finalInput) {
+      if (finalInput !== items[currentIndex]) {
+        console.log('📝 오답 기록:', items[currentIndex], '->', finalInput)
+        setStats(prev => ({
+          ...prev,
+          errorLog: [
+            ...prev.errorLog,
+            {
+              word: items[currentIndex],
+              typed: finalInput
+            }
+          ]
+        }))
+      }
+    }
+
     const nextIndex = currentIndex + 1
     if (nextIndex >= items.length) {
       setCurrentIndex(0)
@@ -107,7 +150,7 @@ export function useChallengeEngine({
     setUserInput('')
     setCharStatuses([])
     verifiedLengthRef.current = 0
-  }, [currentIndex, items.length])
+  }, [currentIndex, items])
   
   // 글자 상태 업데이트 (시각적 피드백용)
   const updateCharStatuses = useCallback((value: string, isComposing: boolean) => {
@@ -167,6 +210,7 @@ export function useChallengeEngine({
             errors: newErrors,
             totalInputs: newTotal,
             accuracy: Math.round((prev.correctChars / newTotal) * 100)
+            // errorLog는 단어 완료 시 기록함
           }
         })
         
@@ -188,6 +232,22 @@ export function useChallengeEngine({
   const handleInput = useCallback((value: string) => {
     if (phase !== 'running') return
     
+    // 변경된 지점 찾기 (공통 접두사 길이 계산)
+    let commonLength = 0
+    const minLength = Math.min(userInput.length, value.length)
+    for (let i = 0; i < minLength; i++) {
+      if (userInput[i] === value[i]) {
+        commonLength++
+      } else {
+        break
+      }
+    }
+    
+    // 검증된 구간 내에서 변경이 발생했다면, 검증 길이를 축소
+    if (commonLength < verifiedLengthRef.current) {
+      verifiedLengthRef.current = commonLength
+    }
+
     setUserInput(value)
     updateCharStatuses(value, isComposingRef.current)
     
@@ -196,9 +256,8 @@ export function useChallengeEngine({
       return
     }
     
-    // 백스페이스의 경우
-    if (value.length < verifiedLengthRef.current) {
-      verifiedLengthRef.current = value.length
+    // 백스페이스 등으로 검증된 길이보다 짧아진 경우 (이미 위에서 verifiedLengthRef 업데이트됨)
+    if (value.length <= verifiedLengthRef.current) {
       return
     }
     
@@ -209,9 +268,9 @@ export function useChallengeEngine({
     
     // 텍스트 완료 체크
     if (value.length >= currentText.length) {
-      moveToNext()
+      moveToNext(value)
     }
-  }, [phase, currentText, updateCharStatuses, processNewChars, moveToNext])
+  }, [phase, currentText, updateCharStatuses, processNewChars, moveToNext, userInput])
   
   // 한글 조합 완료 시 호출
   const handleCompositionEnd = useCallback(() => {
@@ -225,7 +284,7 @@ export function useChallengeEngine({
     
     // 텍스트 완료 체크
     if (userInput.length >= currentText.length) {
-      moveToNext()
+      moveToNext(userInput)
     }
   }, [userInput, currentText, processNewChars, updateCharStatuses, moveToNext])
   
@@ -284,6 +343,7 @@ export function useChallengeEngine({
     start,
     handleInput,
     handleCompositionEnd,
-    reset
+    reset,
+    moveToNext
   }
 }

@@ -4,6 +4,7 @@ import type { PracticeMode } from '../types/practice'
 import type { ChallengeStats } from '../types/challenge'
 import { saveSessionWithBackup, getGuestSessionId, syncPendingSessions, type SessionCreateData } from '../lib/typingApi'
 import { getChallengeBest } from '../lib/challengeStorage'
+import { storage } from '../lib/utils'
 import './ResultPage.css'
 
 interface ResultStats {
@@ -42,6 +43,7 @@ interface ChallengeLocationState {
     resultType: 'challenge'
     stats: ChallengeStats
     durationMs: number
+    isBlindMode?: boolean
 }
 
 type LocationState = PracticeLocationState | ChallengeLocationState
@@ -76,14 +78,65 @@ function ResultPage() {
 
 // ===== 챌린지 결과 컴포넌트 =====
 function ChallengeResult({ state }: { state: ChallengeLocationState }) {
-    const { stats, durationMs } = state
+    const { stats, durationMs, isBlindMode } = state
     const best = getChallengeBest()
     const isNewRecord = best && stats.score === best.bestScore && Date.now() - best.updatedAt < 5000
+    const historySaved = useRef(false)
+
+    // 챌린지 결과를 typingHistory에 저장 (홈페이지 대시보드용)
+    useEffect(() => {
+        if (!stats || historySaved.current) return
+        historySaved.current = true
+        const history = storage.get<{ date: string; time: number; wpm: number; accuracy: number }[]>('typingHistory', [])
+        history.push({
+            date: new Date().toISOString(),
+            time: durationMs / 1000,
+            wpm: stats.wpm,
+            accuracy: stats.accuracy,
+        })
+        storage.set('typingHistory', history)
+    }, [stats, durationMs])
     
+    // 오답 로그 (중복 제거 및 카운팅)
+    const errorAnalysis = useMemo(() => {
+        if (!stats.errorLog || stats.errorLog.length === 0) return []
+        
+        // ErrorLogEntry is now { word: string, typed: string }
+        const errorMap = new Map<string, { word: string; typed: string; count: number }>()
+        
+        stats.errorLog.forEach(log => {
+            const key = `${log.word}:${log.typed}`
+            const existing = errorMap.get(key)
+            if (existing) {
+                existing.count++
+            } else {
+                errorMap.set(key, { ...log, count: 1 })
+            }
+        })
+        
+        return Array.from(errorMap.values()).sort((a, b) => b.count - a.count)
+    }, [stats.errorLog])
+
+    // 글자별 비교 렌더링
+    const renderDiff = (word: string, typed: string) => {
+        return typed.split('').map((char, i) => {
+            const exactChar = word[i]
+            const isCorrect = char === exactChar
+            return (
+                <span key={i} className={isCorrect ? 'diff-correct' : 'diff-incorrect'}>
+                    {char}
+                </span>
+            )
+        })
+    }
+
     return (
         <div className="result-page container">
             <div className="result-card challenge-result">
-                <div className="result-badge">🔥 60초 챌린지</div>
+                <div className="result-badges">
+                  <div className="result-badge">🔥 60초 챌린지</div>
+                  {isBlindMode && <div className="result-badge blind-badge">🕶️ 블라인드 모드</div>}
+                </div>
                 
                 {isNewRecord && (
                     <div className="new-record-banner">
@@ -122,6 +175,30 @@ function ChallengeResult({ state }: { state: ChallengeLocationState }) {
                         <span className="stat-label">오타</span>
                     </div>
                 </div>
+                
+                {/* 오답 노트 (개선된 UI) */}
+                {errorAnalysis.length > 0 && (
+                    <div className="error-analysis challenge-errors">
+                        <h3>
+                            🔍 오답 노트
+                            {isBlindMode && <span className="blind-note-badge">🕶️ 블라인드 모드 리뷰</span>}
+                        </h3>
+                        <div className="error-list-stacked">
+                            {errorAnalysis.map((error, index) => (
+                                <div key={index} className="error-card">
+                                    <div className="error-word-original">{error.word}</div>
+                                    <div className="error-arrow-down">↓</div>
+                                    <div className="error-word-typed">
+                                        {renderDiff(error.word, error.typed)}
+                                    </div>
+                                    {error.count > 1 && (
+                                        <div className="error-frequency-badge">{error.count}회 반복</div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 
                 {/* 액션 버튼 */}
                 <div className="result-actions">
@@ -178,6 +255,16 @@ function PracticeResult({ state }: { state: PracticeLocationState }) {
         }
         
         saveResult()
+
+        // typingHistory에도 저장 (홈페이지 대시보드용)
+        const history = storage.get<{ date: string; time: number; wpm: number; accuracy: number }[]>('typingHistory', [])
+        history.push({
+            date: new Date().toISOString(),
+            time: stats.time,
+            wpm: stats.wpm,
+            accuracy: stats.accuracy,
+        })
+        storage.set('typingHistory', history)
     }, [stats, text, language, metadata])
 
     // 오타 분석

@@ -106,7 +106,22 @@ class Entry(models.Model):
         on_delete=models.CASCADE,
         related_name='leaderboard_entries',
         verbose_name='사용자',
+        null=True,
+        blank=True,
         db_index=True
+    )
+    guest_session_id = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='게스트 세션 ID',
+        db_index=True
+    )
+    display_name = models.CharField(
+        max_length=50,
+        default='Guest',
+        verbose_name='표시 이름',
+        help_text='랭킹에 표시되는 이름'
     )
     rank = models.PositiveIntegerField(
         verbose_name='순위',
@@ -152,10 +167,6 @@ class Entry(models.Model):
         ordering = ['rank']
         constraints = [
             models.UniqueConstraint(
-                fields=['snapshot', 'user'],
-                name='uq_entry_snapshot_user'
-            ),
-            models.UniqueConstraint(
                 fields=['snapshot', 'rank'],
                 name='uq_entry_snapshot_rank'
             ),
@@ -163,7 +174,9 @@ class Entry(models.Model):
         indexes = [
             models.Index(fields=['snapshot', 'rank'], name='idx_entry_snapshot_rank'),
             models.Index(fields=['user', '-created_at'], name='idx_entry_user_created'),
+            models.Index(fields=['guest_session_id', '-created_at'], name='idx_entry_guest_created'),
         ]
     
     def __str__(self):
-        return f"#{self.rank} {self.user.username} - {self.score_wpm}WPM"
+        name = self.user.username if self.user else self.display_name
+        return f"#{self.rank} {name} - {self.score_wpm}WPM"

@@ -348,6 +348,119 @@
     }
 }
 
+/* 데일리 챌린지 카드 */
+.daily-challenge-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.daily-challenge-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 165, 0, 0.2);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    position: relative;
+    overflow: hidden;
+}
+
+.daily-challenge-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ff6b35, #f7931a, #ffd700);
+}
+
+.dc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.dc-badge {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #ffa726;
+    background: rgba(255, 167, 38, 0.12);
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.dc-difficulty {
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+}
+
+.dc-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: var(--spacing-xs) 0;
+}
+
+.dc-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+}
+
+.dc-targets {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-md);
+}
+
+.dc-target {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: var(--text-secondary);
+}
+
+.dc-progress {
+    margin-bottom: var(--spacing-md);
+}
+
+.dc-progress-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-xs);
+}
+
+.dc-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff6b35, #ffd700);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.dc-progress-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.dc-join-btn {
+    width: 100%;
+    margin-bottom: var(--spacing-md);
+}
+
+.dc-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
 /* 기능 섹션 */
 .features {
     padding: var(--spacing-2xl) 0;

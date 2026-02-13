@@ -48,12 +48,9 @@ class SnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=False, methods=['get'])
     def me(self, request):
-        """내 순위 조회"""
-        if not request.user.is_authenticated:
-            return Response({'detail': '로그인이 필요합니다.'}, status=401)
-        
+        """내 순위 조회 (로그인/익명 모두 지원)"""
         period = request.query_params.get('period', 'weekly')
-        language = request.query_params.get('language', 'all')
+        guest_id = request.query_params.get('guest_session_id', '')
         
         snapshot = self.get_queryset().filter(period=period).first()
         
@@ -61,7 +58,13 @@ class SnapshotViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'detail': '랭킹이 아직 생성되지 않았습니다.'}, status=404)
         
         # 내 엔트리 찾기
-        my_entry = snapshot.entries.filter(user=request.user).first()
+        my_entry = None
+        if request.user.is_authenticated:
+            my_entry = snapshot.entries.filter(user=request.user).first()
+        elif guest_id:
+            my_entry = snapshot.entries.filter(guest_session_id=guest_id).first()
+        else:
+            return Response({'detail': 'guest_session_id 또는 로그인이 필요합니다.'}, status=400)
         
         # 근처 랭커 (내 순위 ±2)
         neighbors = []
@@ -69,7 +72,7 @@ class SnapshotViewSet(viewsets.ReadOnlyModelViewSet):
             neighbors = snapshot.entries.filter(
                 rank__gte=max(1, my_entry.rank - 2),
                 rank__lte=my_entry.rank + 2
-            ).exclude(user=request.user)
+            ).exclude(id=my_entry.id)
         
         data = {
             'snapshot': SnapshotSerializer(snapshot).data,
@@ -92,4 +95,4 @@ class EntryViewSet(viewsets.ReadOnlyModelViewSet):
         if snapshot_id:
             queryset = queryset.filter(snapshot_id=snapshot_id)
         
-        return queryset.order_by('rank')[:100]  # 상위 100명만
+        return queryset.order_by('rank')[:100]

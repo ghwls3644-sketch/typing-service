@@ -26,19 +26,31 @@ function ChallengePage() {
   // 최고기록
   const [best, setBest] = useState<ChallengeBest | null>(null)
   
+  // 리필 상태 (중복 요청 방지)
+  const [hasRefilled, setHasRefilled] = useState(false)
+
+  // 블라인드 모드 상태
+  const [isBlindMode, setIsBlindMode] = useState(false)
+  
   // 챌린지 엔진
   const handleComplete = useCallback((stats: ChallengeStats) => {
-    // 결과 저장
-    saveChallengeResult(stats, CHALLENGE_DURATION_SEC * 1000)
-    
-    // 결과 페이지로 이동
-    navigate('/result', {
-      state: {
-        resultType: 'challenge',
-        stats,
-        durationMs: CHALLENGE_DURATION_SEC * 1000
-      }
-    })
+    try {
+      // 결과 저장
+      saveChallengeResult(stats, CHALLENGE_DURATION_SEC * 1000)
+      
+      // 결과 페이지로 이동
+      navigate('/result', {
+        state: {
+          resultType: 'challenge',
+          stats,
+          durationMs: CHALLENGE_DURATION_SEC * 1000,
+          isBlindMode
+        }
+      })
+    } catch (err) {
+      console.error('❌ Error in handleComplete:', err)
+      alert('결과 저장 또는 이동 중 오류가 발생했습니다.')
+    }
   }, [navigate])
   
   const {
@@ -52,17 +64,27 @@ function ChallengePage() {
     start,
     handleInput,
     handleCompositionEnd,
-    reset
+    reset,
+    moveToNext
   } = useChallengeEngine({
     items,
     onComplete: handleComplete
   })
+
+  // 키 입력 핸들러 (엔터, 스페이스바 처리)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      moveToNext(userInput)
+    }
+  }
   
   // 콘텐츠 로딩
   useEffect(() => {
     const loadItems = async () => {
       setIsLoading(true)
       setLoadError(null)
+      setHasRefilled(false)
       
       try {
         // 서버에서 단어 로딩 (난이도 2, 한글, 200개)
@@ -91,6 +113,29 @@ function ChallengePage() {
     setBest(getChallengeBest())
   }, [])
   
+  // 30초 남았을 때 리필 (1회만)
+  useEffect(() => {
+    if (phase === 'running' && remainingTime <= 30 && !hasRefilled) {
+      const refillItems = async () => {
+        setHasRefilled(true)
+        console.log('⏳ 30초 남음! 추가 단어 리필 시도...')
+        
+        try {
+          const response = await fetchPracticeItems('word', 'ko', 2, 200)
+          if (response.items.length > 0) {
+            const shuffled = [...response.items].sort(() => Math.random() - 0.5)
+            setItems(prev => [...prev, ...shuffled])
+            console.log('✅ 추가 단어 200개 리필 완료')
+          }
+        } catch (err) {
+          console.warn('❌ 리필 실패 (게임은 계속 진행됩니다):', err)
+        }
+      }
+      
+      refillItems()
+    }
+  }, [phase, remainingTime, hasRefilled])
+  
   // Start 클릭 핸들러
   const handleStart = () => {
     start()
@@ -114,16 +159,22 @@ function ChallengePage() {
           
           if (i < userInput.length) {
             // 사용자가 입력한 글자
-            const status = charStatuses[i]
-            if (status === 'correct') {
-              className = 'text-correct'
-            } else if (status === 'incorrect') {
-              className = 'text-incorrect'
+            if (isBlindMode) {
+                // 블라인드 모드: 정오답 색상 표시 안 함 (그냥 지나간 텍스트로 처리)
+                className = 'text-rest dimmed' // 약간 흐리게만 처리하거나 아예 text-rest 유지
             } else {
-              className = 'text-pending'  // 조합 중
+                // 기본 모드: 정오답 표시
+                const status = charStatuses[i]
+                if (status === 'correct') {
+                  className = 'text-correct'
+                } else if (status === 'incorrect') {
+                  className = 'text-incorrect'
+                } else {
+                  className = 'text-pending'  // 조합 중
+                }
             }
           } else if (i === userInput.length) {
-            // 현재 입력해야 할 글자
+            // 현재 입력해야 할 글자 (커서)
             className = 'text-current'
           }
           
@@ -177,6 +228,17 @@ function ChallengePage() {
             </div>
           )}
           
+          <div className="mode-toggle">
+            <label className="toggle-label">
+              <input 
+                type="checkbox" 
+                checked={isBlindMode} 
+                onChange={(e) => setIsBlindMode(e.target.checked)} 
+              />
+              <span className="toggle-text">🕶️ 블라인드 모드 (내 입력 안 보임)</span>
+            </label>
+          </div>
+
           <button className="btn btn-primary btn-lg start-btn" onClick={handleStart}>
             🚀 시작하기
           </button>
@@ -196,7 +258,7 @@ function ChallengePage() {
   
   // Running 화면
   return (
-    <div className={`challenge-page container ${isError ? 'error-shake' : ''}`}>
+    <div className={`challenge-page container ${isError && !isBlindMode ? 'error-shake' : ''}`}>
       {/* HUD */}
       <div className="challenge-hud">
         <div className="hud-item hud-time">
@@ -223,15 +285,24 @@ function ChallengePage() {
       
       {/* 텍스트 표시 영역 */}
       <div className="challenge-text-area" onClick={() => inputRef.current?.focus()}>
-        <div className={`text-display ${isError ? 'text-error' : ''}`}>
+        <div className={`text-display ${isError && !isBlindMode ? 'text-error' : ''}`}>
           {renderText()}
         </div>
+        
+        {/* 사용자 입력 시각화 (블라인드 모드가 아닐 때만) */}
+        {!isBlindMode && (
+          <div className="user-input-display">
+            {userInput || <span className="placeholder">입력하면 여기에 표시됩니다...</span>}
+          </div>
+        )}
+
         <input
           ref={inputRef}
           type="text"
           className="challenge-input"
           value={userInput}
           onChange={(e) => handleInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           onCompositionEnd={handleCompositionEnd}
           autoFocus
           autoComplete="off"

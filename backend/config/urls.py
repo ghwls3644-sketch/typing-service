@@ -6,8 +6,16 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+
+
+def health_check(request):
+    """서버 상태 확인 엔드포인트"""
+    return JsonResponse({'status': 'ok'})
+
 
 urlpatterns = [
+    path('health', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     path('api/users/', include('apps.users.urls')),
     path('api/texts/', include('apps.texts.urls')),

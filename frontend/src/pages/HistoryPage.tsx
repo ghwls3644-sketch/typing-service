@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { getChallengeBest, getChallengeHistory } from '../lib/challengeStorage'
+import { exportSessions, importSessions, getGuestSessionId } from '../lib/typingApi'
+import type { ExportData } from '../lib/typingApi'
 import type { ChallengeSessionLocal, ChallengeBest } from '../types/challenge'
 import './HistoryPage.css'
 
@@ -24,6 +26,46 @@ function HistoryPage() {
     // 챌린지 데이터
     const [challengeBest, setChallengeBest] = useState<ChallengeBest | null>(null)
     const [challengeHistory, setChallengeHistory] = useState<ChallengeSessionLocal[]>([])
+    const [exportStatus, setExportStatus] = useState<string | null>(null)
+    const [importStatus, setImportStatus] = useState<string | null>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // 내보내기 핸들러
+    const handleExport = async () => {
+        setExportStatus('내보내는 중...')
+        try {
+            const guestId = getGuestSessionId()
+            const data = await exportSessions(guestId)
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `typing-data-${new Date().toISOString().slice(0, 10)}.json`
+            a.click()
+            URL.revokeObjectURL(url)
+            setExportStatus(`✅ ${data.total_sessions}개 세션 내보내기 완료`)
+        } catch {
+            setExportStatus('❌ 내보내기 실패')
+        }
+        setTimeout(() => setExportStatus(null), 3000)
+    }
+
+    // 가져오기 핸들러
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setImportStatus('가져오는 중...')
+        try {
+            const text = await file.text()
+            const data: ExportData = JSON.parse(text)
+            const result = await importSessions(data)
+            setImportStatus(`✅ ${result.imported}개 가져옴, ${result.skipped}개 중복`)
+        } catch {
+            setImportStatus('❌ 가져오기 실패 (파일 형식 확인)')
+        }
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        setTimeout(() => setImportStatus(null), 4000)
+    }
 
     // 연습 히스토리 로드 (샘플 데이터)
     useEffect(() => {
@@ -97,10 +139,30 @@ function HistoryPage() {
         <div className="history-page container">
             <div className="history-header">
                 <h1>연습 기록</h1>
-                <Link to="/practice" className="btn btn-primary">
-                    ⌨️ 연습하기
-                </Link>
+                <div className="history-actions">
+                    <button className="btn btn-ghost" onClick={handleExport} title="데이터 내보내기">
+                        📤 내보내기
+                    </button>
+                    <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()} title="데이터 가져오기">
+                        📥 가져오기
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json"
+                        style={{ display: 'none' }}
+                        onChange={handleImport}
+                    />
+                    <Link to="/practice" className="btn btn-primary">
+                        ⌨️ 연습하기
+                    </Link>
+                </div>
             </div>
+            {(exportStatus || importStatus) && (
+                <div className="export-import-status">
+                    {exportStatus || importStatus}
+                </div>
+            )}
 
             {/* 탭 */}
             <div className="history-tabs">

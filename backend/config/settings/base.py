@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'apps.leaderboard',
     'apps.challenges',
     'apps.achievements',
+    'apps.devices',
 ]
 
 MIDDLEWARE = [
@@ -47,6 +48,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.devices.middleware.GuestClientMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

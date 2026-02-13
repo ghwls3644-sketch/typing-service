@@ -4,14 +4,19 @@ from .models import Snapshot, Entry
 
 class EntrySerializer(serializers.ModelSerializer):
     """랭킹 엔트리 직렬화"""
-    username = serializers.CharField(source='user.username', read_only=True)
+    name = serializers.SerializerMethodField()
     
     class Meta:
         model = Entry
         fields = [
-            'id', 'rank', 'user', 'username', 'score_wpm', 'score_accuracy',
+            'id', 'rank', 'name', 'display_name', 'score_wpm', 'score_accuracy',
             'session_count', 'best_wpm', 'total_duration_ms'
         ]
+    
+    def get_name(self, obj):
+        if obj.user:
+            return obj.user.nickname or obj.user.username
+        return obj.display_name
 
 
 class SnapshotSerializer(serializers.ModelSerializer):

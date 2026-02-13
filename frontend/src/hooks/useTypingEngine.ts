@@ -143,14 +143,8 @@ export function useTypingEngine({
     }
     
     // 완료 체크
-    // 단어 모드: 단어 길이를 채운 후 다음 입력이 들어오면 자동 완료
-    if (settings.mode === 'word' && value.length > targetText.length) {
-      finishPractice('completed')
-      return
-    }
-    
-    // 문장/드릴 모드: 정확히 일치해야 완료 (단어 모드 제외)
-    if (settings.mode !== 'word' && value === targetText) {
+    // 단어/짧은글 모드: 길이를 채운 후 다음 입력이 들어오면 자동 완료
+    if (value.length > targetText.length) {
       finishPractice('completed')
     }
   }, [isFinished, isStarted, startTime, targetText, settings, calculateStats, finishPractice])

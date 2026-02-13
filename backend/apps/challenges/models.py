@@ -228,3 +228,112 @@ class UserChallenge(models.Model):
             self.save()
         
         return completed
+
+
+class ClientChallenge(models.Model):
+    """익명 사용자 챌린지 참가 기록 (guest_session_id 기반)"""
+    
+    STATUS_CHOICES = [
+        ('in_progress', '진행 중'),
+        ('completed', '완료'),
+        ('failed', '실패'),
+    ]
+    
+    guest_session_id = models.CharField(
+        max_length=100,
+        verbose_name='게스트 세션 ID'
+    )
+    challenge = models.ForeignKey(
+        DailyChallenge,
+        on_delete=models.CASCADE,
+        related_name='guest_participants',
+        verbose_name='챌린지'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='in_progress',
+        verbose_name='상태'
+    )
+    
+    # 진행 상황
+    current_wpm = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='현재 WPM'
+    )
+    current_accuracy = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='현재 정확도 (%)'
+    )
+    current_sessions = models.PositiveIntegerField(
+        default=0,
+        verbose_name='현재 세션 수'
+    )
+    current_time_minutes = models.PositiveIntegerField(
+        default=0,
+        verbose_name='현재 시간 (분)'
+    )
+    
+    started_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='시작 시각'
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='완료 시각'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='생성일'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='수정일'
+    )
+    
+    class Meta:
+        verbose_name = '익명 챌린지'
+        verbose_name_plural = '익명 챌린지들'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['guest_session_id', 'challenge'],
+                name='uq_client_challenge'
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['guest_session_id', 'status'], name='idx_cc_guest_status'),
+            models.Index(fields=['challenge', 'status'], name='idx_cc_challenge_status'),
+        ]
+    
+    def __str__(self):
+        return f"{self.guest_session_id[:20]} - {self.challenge.title} ({self.get_status_display()})"
+    
+    def check_completion(self):
+        """챌린지 완료 여부 확인"""
+        from django.utils import timezone
+        
+        challenge = self.challenge
+        completed = True
+        
+        if challenge.target_wpm and (not self.current_wpm or self.current_wpm < challenge.target_wpm):
+            completed = False
+        if challenge.target_accuracy and (not self.current_accuracy or self.current_accuracy < challenge.target_accuracy):
+            completed = False
+        if challenge.target_sessions and self.current_sessions < challenge.target_sessions:
+            completed = False
+        if challenge.target_time_minutes and self.current_time_minutes < challenge.target_time_minutes:
+            completed = False
+        
+        if completed and self.status != 'completed':
+            self.status = 'completed'
+            self.completed_at = timezone.now()
+            self.save()
+        
+        return completed
+

@@ -89,6 +89,32 @@ services:
     profiles:
       - production
 
+  # Scheduler (cron jobs)
+  scheduler:
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+    container_name: typing_service_scheduler
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.local
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=typing_service
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
+      - TZ=Asia/Seoul
+    volumes:
+      - ./backend:/app
+      - ./infra:/infra
+    networks:
+      - typing_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh /infra/docker/scheduler-entrypoint.sh
+    restart: unless-stopped
+
 networks:
   typing_network:
     driver: bridge

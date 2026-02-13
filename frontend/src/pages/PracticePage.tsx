@@ -24,6 +24,7 @@ type Phase = 'select' | 'practice'
 function PracticePage() {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
+
   
   // 단계: select(모드 선택) -> practice(연습 중)
   const [phase, setPhase] = useState<Phase>('select')
@@ -321,6 +322,13 @@ function PracticePage() {
           className="typing-input"
           value={userInput}
           onChange={(e) => handleInput(e.target.value)}
+          onKeyDown={(e) => {
+            // 엔터키: 텍스트를 다 입력한 상태면 완료 처리
+            if (e.key === 'Enter' && userInput.length >= currentText.length) {
+              e.preventDefault()
+              handleInput(userInput + ' ')
+            }
+          }}
           disabled={isFinished}
           placeholder={isStarted ? '' : '여기를 클릭하고 타이핑을 시작하세요'}
           autoFocus

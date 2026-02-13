@@ -133,3 +133,68 @@ class UserStreak(models.Model):
         
         self.last_active_date = activity_date
         self.save()
+
+
+class ClientStreak(models.Model):
+    """익명 사용자(guest_session_id) 스트릭 캐시"""
+    
+    guest_session_id = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='게스트 세션 ID'
+    )
+    current_streak = models.PositiveIntegerField(
+        default=0,
+        verbose_name='현재 스트릭'
+    )
+    longest_streak = models.PositiveIntegerField(
+        default=0,
+        verbose_name='최장 스트릭'
+    )
+    last_active_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='마지막 활동일'
+    )
+    streak_start_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='스트릭 시작일'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='생성일'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='수정일'
+    )
+    
+    class Meta:
+        verbose_name = '익명 스트릭'
+        verbose_name_plural = '익명 스트릭들'
+    
+    def __str__(self):
+        return f"{self.guest_session_id[:20]} - 현재 {self.current_streak}일 (최장 {self.longest_streak}일)"
+    
+    def update_streak(self, activity_date):
+        """스트릭 업데이트 로직"""
+        from datetime import timedelta
+        
+        if self.last_active_date is None:
+            self.current_streak = 1
+            self.streak_start_date = activity_date
+        elif activity_date == self.last_active_date:
+            pass
+        elif activity_date == self.last_active_date + timedelta(days=1):
+            self.current_streak += 1
+        else:
+            self.current_streak = 1
+            self.streak_start_date = activity_date
+        
+        if self.current_streak > self.longest_streak:
+            self.longest_streak = self.current_streak
+        
+        self.last_active_date = activity_date
+        self.save()
+

@@ -207,3 +207,163 @@ export async function saveSessionWithBackup(data: SessionCreateData): Promise<Se
         return null
     }
 }
+
+// === 대시보드 통계 API ===
+export interface DashboardOverview {
+    period_days: number
+    total_sessions: number
+    total_duration_ms: number
+    avg_wpm: number
+    avg_accuracy: number
+    best_wpm: number | null
+    best_accuracy: number | null
+    current_streak: number
+    longest_streak: number
+    today: {
+        total_sessions: number
+        avg_wpm: number
+        avg_accuracy: number
+        total_duration_ms: number
+    }
+}
+
+export async function fetchDashboardOverview(guestSessionId?: string): Promise<DashboardOverview> {
+    const params: Record<string, string> = {}
+    if (guestSessionId) params.guest_session_id = guestSessionId
+    return api.get<DashboardOverview>('/stats/client/overview/', params)
+}
+
+// === 리더보드 API ===
+export interface LeaderboardEntry {
+    rank: number
+    name: string
+    avg_wpm: string
+    best_wpm: string
+    avg_accuracy: string
+    total_sessions: number
+    status?: string
+}
+
+export interface LeaderboardSnapshot {
+    id: number
+    period_start: string
+    period_end: string
+    language: string
+    total_entries: number
+    entries: LeaderboardEntry[]
+}
+
+export interface LeaderboardMeResponse {
+    rank: number | null
+    entry: LeaderboardEntry | null
+    total_entries: number
+    around: LeaderboardEntry[]
+}
+
+export async function fetchLeaderboardLatest(language?: string): Promise<LeaderboardSnapshot> {
+    const params: Record<string, string> = {}
+    if (language) params.language = language
+    return api.get<LeaderboardSnapshot>('/leaderboard/snapshots/latest/', params)
+}
+
+export async function fetchLeaderboardMe(guestSessionId?: string, language?: string): Promise<LeaderboardMeResponse> {
+    const params: Record<string, string> = {}
+    if (guestSessionId) params.guest_session_id = guestSessionId
+    if (language) params.language = language
+    return api.get<LeaderboardMeResponse>('/leaderboard/snapshots/me/', params)
+}
+
+// === 데일리 챌린지 API ===
+export interface DailyChallengeInfo {
+    id: number
+    date: string
+    title: string
+    description: string
+    difficulty: number
+    difficulty_display: string
+    target_wpm: number | null
+    target_accuracy: string | null
+    target_sessions: number
+    reward_points: number
+    participants_count: number
+    completed_count: number
+    is_active: boolean
+}
+
+export interface ChallengeProgress {
+    id: number
+    challenge_title: string
+    status: string
+    current_wpm: number
+    target_wpm: number | null
+    progress_wpm: number
+    current_accuracy: number
+    target_accuracy: number | null
+    progress_accuracy: number
+    current_sessions: number
+    target_sessions: number
+    progress_sessions: number
+    just_completed?: boolean
+}
+
+export async function fetchDailyChallenge(guestSessionId?: string): Promise<DailyChallengeInfo> {
+    const params: Record<string, string> = {}
+    if (guestSessionId) params.guest_session_id = guestSessionId
+    return api.get<DailyChallengeInfo>('/challenges/daily/today/', params)
+}
+
+export async function joinDailyChallenge(challengeId: number, guestSessionId?: string): Promise<ChallengeProgress> {
+    return api.post<ChallengeProgress>('/challenges/daily/join/', {
+        challenge_id: challengeId,
+        guest_session_id: guestSessionId,
+    })
+}
+
+export async function submitDailyChallenge(
+    challengeId: number,
+    wpm: number,
+    accuracy: number,
+    guestSessionId?: string
+): Promise<ChallengeProgress> {
+    return api.post<ChallengeProgress>('/challenges/daily/submit/', {
+        challenge_id: challengeId,
+        wpm,
+        accuracy,
+        guest_session_id: guestSessionId,
+    })
+}
+
+export interface DailyChallengeRanking {
+    challenge: DailyChallengeInfo
+    rankings: LeaderboardEntry[]
+    total_participants: number
+}
+
+export async function fetchDailyChallengeRanking(): Promise<DailyChallengeRanking> {
+    return api.get<DailyChallengeRanking>('/challenges/daily/ranking/')
+}
+
+// === Export/Import API ===
+export interface ExportData {
+    schema_version: number
+    exported_at: string
+    guest_session_id: string
+    total_sessions: number
+    sessions: SessionCreateData[]
+}
+
+export interface ImportResult {
+    imported: number
+    skipped: number
+    errors: number
+    total: number
+}
+
+export async function exportSessions(guestSessionId: string): Promise<ExportData> {
+    return api.get<ExportData>('/sessions/export/', { guest_session_id: guestSessionId })
+}
+
+export async function importSessions(data: ExportData): Promise<ImportResult> {
+    return api.post<ImportResult>('/sessions/import/', data)
+}
+
