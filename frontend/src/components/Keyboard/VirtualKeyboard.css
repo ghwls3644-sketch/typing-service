@@ -1,0 +1,136 @@
+/* 가상 키보드 */
+.keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  max-width: 900px;
+  margin: 0 auto;
+  user-select: none;
+}
+
+.keyboard-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+/* 개별 키 */
+.key {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 42px;
+  background: var(--bg-tertiary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 3px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition:
+    background var(--transition-fast),
+    transform var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+
+.key-main {
+  line-height: 1;
+  font-weight: 500;
+}
+
+.key-sub {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  line-height: 1;
+  position: absolute;
+  top: 3px;
+  right: 4px;
+}
+
+/* 기능 키 (Tab, Caps, Shift, Backspace, Enter) */
+.key--fn {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* 스페이스바 */
+.key--space {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* 다음 키 하이라이트 */
+.key--highlight {
+  background: var(--color-primary);
+  border-color: var(--color-primary-light);
+  border-bottom-color: var(--color-primary-dark);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(102, 126, 234, 0.5);
+}
+
+.key--highlight .key-sub {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 눌린 키 */
+.key--pressed {
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
+  border-bottom-width: 1px;
+  color: #fff;
+  transform: translateY(2px);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .keyboard {
+    padding: var(--spacing-sm);
+    gap: 3px;
+  }
+
+  .keyboard-row {
+    gap: 2px;
+  }
+
+  .key {
+    height: 34px;
+    font-size: 0.65rem;
+    border-radius: 3px;
+  }
+
+  .key-sub {
+    font-size: 0.45rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .keyboard {
+    padding: var(--spacing-xs);
+    gap: 2px;
+  }
+
+  .key {
+    height: 28px;
+    font-size: 0.55rem;
+    border-bottom-width: 2px;
+  }
+
+  .key--fn,
+  .key--space {
+    font-size: 0.5rem;
+  }
+
+  .key-sub {
+    display: none;
+  }
+}

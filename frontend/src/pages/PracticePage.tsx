@@ -2,7 +2,11 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ModeSelector from '../components/Practice/ModeSelector'
 import ModeSettings from '../components/Practice/ModeSettings'
+import KeyboardWithGuide from '../components/Keyboard/KeyboardWithGuide'
 import { useTypingEngine } from '../hooks/useTypingEngine'
+import { useKeyPress } from '../hooks/useKeyPress'
+import { useKeyboardHighlight } from '../hooks/useKeyboardHighlight'
+import { useHangulKeystrokeQueue } from '../hooks/useHangulKeystrokeQueue'
 import { DEFAULT_SETTINGS, type PracticeMode, type PracticeSettings, type TypingStats } from '../types/practice'
 import { fetchPracticeItems } from '../lib/typingApi'
 import './PracticePage.css'
@@ -57,6 +61,20 @@ function PracticePage() {
     targetText: currentText,
     settings,
   })
+
+  // 가상 키보드 훅
+  const pressedKeys = useKeyPress(phase === 'practice' && !!settings.showPressedKeys)
+  const isKorean = settings.language === 'korean'
+  const { keystrokeQueue, consumedKeystrokes } = useHangulKeystrokeQueue(
+    currentText, userInput, isKorean && !!settings.showKeyboard
+  )
+  const nextKeys = useKeyboardHighlight(
+    currentText,
+    userInput,
+    isKorean ? 'korean' : 'english',
+    isKorean ? keystrokeQueue : undefined,
+    isKorean ? consumedKeystrokes : undefined,
+  )
 
   // userInput을 ref로 추적 (stale closure 방지)
   const userInputRef = useRef('')
@@ -363,6 +381,17 @@ function PracticePage() {
           style={{ width: `${currentText.length > 0 ? (userInput.length / currentText.length) * 100 : 0}%` }}
         />
       </div>
+
+      {/* 가상 키보드 + 손가락 가이드 */}
+      <KeyboardWithGuide
+        nextKeys={nextKeys}
+        pressedKeys={pressedKeys}
+        language={settings.language}
+        showKeyboard={!!settings.showKeyboard}
+        showHandGuide={!!settings.showHandGuide}
+        showPressedKeys={!!settings.showPressedKeys}
+        showFingerColors={!!settings.showHandGuide}
+      />
 
       {/* 액션 버튼 */}
       <div className="practice-actions">

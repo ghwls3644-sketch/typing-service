@@ -19,6 +19,9 @@ export interface PracticeSettings {
   timeLimitSec?: number
   maxErrors?: number
   minAccuracy?: number
+  showKeyboard?: boolean
+  showHandGuide?: boolean
+  showPressedKeys?: boolean
 }
 
 export interface TypingStats {
@@ -76,5 +79,8 @@ export const DEFAULT_SETTINGS: PracticeSettings = {
   mode: 'word',
   language: 'korean',
   difficulty: 1,
-  itemsPerSession: 10
+  itemsPerSession: 10,
+  showKeyboard: true,
+  showHandGuide: true,
+  showPressedKeys: true,
 }

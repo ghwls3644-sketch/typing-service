@@ -1,0 +1,63 @@
+/* 손가락 가이드 */
+.hand-guide {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-xl);
+  margin-top: var(--spacing-sm);
+}
+
+.hand-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.hand-svg {
+  width: 100px;
+  height: 88px;
+}
+
+.hand-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.hand-finger {
+  transition:
+    fill var(--transition-fast),
+    stroke var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.hand-finger--active {
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .hand-guide {
+    gap: var(--spacing-md);
+  }
+
+  .hand-svg {
+    width: 80px;
+    height: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hand-guide {
+    gap: var(--spacing-sm);
+  }
+
+  .hand-svg {
+    width: 60px;
+    height: 52px;
+  }
+
+  .hand-label {
+    font-size: 0.6rem;
+  }
+}

@@ -63,6 +63,48 @@ function ModeSettings({ mode, settings, onSettingsChange }: ModeSettingsProps) {
             ))}
           </div>
         </div>
+
+        {/* 가상 키보드 설정 */}
+        <div className="setting-item">
+          <span className="setting-label">가상 키보드</span>
+          <div className="setting-options">
+            <button
+              className={`setting-btn ${settings.showKeyboard ? 'active' : ''}`}
+              onClick={() => onSettingsChange({ showKeyboard: !settings.showKeyboard })}
+            >
+              {settings.showKeyboard ? 'ON' : 'OFF'}
+            </button>
+          </div>
+        </div>
+
+        {/* 손가락 가이드 설정 */}
+        {settings.showKeyboard && (
+          <>
+            <div className="setting-item">
+              <span className="setting-label">손가락 가이드</span>
+              <div className="setting-options">
+                <button
+                  className={`setting-btn ${settings.showHandGuide ? 'active' : ''}`}
+                  onClick={() => onSettingsChange({ showHandGuide: !settings.showHandGuide })}
+                >
+                  {settings.showHandGuide ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+
+            <div className="setting-item">
+              <span className="setting-label">키 입력 표시</span>
+              <div className="setting-options">
+                <button
+                  className={`setting-btn ${settings.showPressedKeys ? 'active' : ''}`}
+                  onClick={() => onSettingsChange({ showPressedKeys: !settings.showPressedKeys })}
+                >
+                  {settings.showPressedKeys ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
