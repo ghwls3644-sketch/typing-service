@@ -12,34 +12,35 @@ function LeaderboardPage() {
     const [language, setLanguage] = useState<'ko' | 'en'>('ko')
 
     useEffect(() => {
-        loadLeaderboard()
+        const controller = new AbortController()
+        loadLeaderboard(controller.signal)
+        return () => { controller.abort() }
     }, [language])
 
-    const loadLeaderboard = async () => {
+    const loadLeaderboard = async (signal?: AbortSignal) => {
         setLoading(true)
         setError(null)
-        try {
-            const guestId = getGuestSessionId()
+        const guestId = getGuestSessionId()
 
-            // 메인 랭킹 + 내 순위 동시 로드
-            const [snapshot, me] = await Promise.allSettled([
-                fetchLeaderboardLatest(language),
-                fetchLeaderboardMe(guestId, language),
-            ])
+        const [snapshot, me] = await Promise.allSettled([
+            fetchLeaderboardLatest(language),
+            fetchLeaderboardMe(guestId, language),
+        ])
 
-            if (snapshot.status === 'fulfilled') {
-                setEntries(snapshot.value.entries || [])
-                setTotalEntries(snapshot.value.total_entries || 0)
-            }
+        if (signal?.aborted) return
 
-            if (me.status === 'fulfilled') {
-                setMyRank(me.value.rank)
-            }
-        } catch {
+        if (snapshot.status === 'fulfilled') {
+            setEntries(snapshot.value.entries || [])
+            setTotalEntries(snapshot.value.total_entries || 0)
+        } else {
             setError('랭킹 데이터를 불러올 수 없습니다.')
-        } finally {
-            setLoading(false)
         }
+
+        if (me.status === 'fulfilled') {
+            setMyRank(me.value.rank)
+        }
+
+        setLoading(false)
     }
 
     const getRankEmoji = (rank: number) => {
@@ -98,7 +99,7 @@ function LeaderboardPage() {
                 <div className="leaderboard-empty">
                     <div className="empty-icon">⚠️</div>
                     <p>{error}</p>
-                    <button className="btn btn-primary" onClick={loadLeaderboard}>
+                    <button className="btn btn-primary" onClick={() => loadLeaderboard()}>
                         다시 시도
                     </button>
                 </div>

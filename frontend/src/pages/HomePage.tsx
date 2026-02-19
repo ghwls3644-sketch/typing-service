@@ -25,6 +25,8 @@ function HomePage() {
     const [isJoining, setIsJoining] = useState(false)
 
     useEffect(() => {
+        const controller = new AbortController()
+
         // 먼저 대기 중인 세션 동기화(백그라운드)
         syncPendingSessions().catch(() => {})
 
@@ -33,9 +35,10 @@ function HomePage() {
             try {
                 const guestId = getGuestSessionId()
                 const overview = await fetchDashboardOverview(guestId)
-                
+                if (controller.signal.aborted) return
+
                 const todayDurationMin = Math.round((overview.today?.total_duration_ms || 0) / 60000)
-                
+
                 setStats({
                     currentStreak: overview.current_streak || 0,
                     longestStreak: overview.longest_streak || 0,
@@ -47,13 +50,14 @@ function HomePage() {
                     goalTarget: 30,
                 })
             } catch {
+                if (controller.signal.aborted) return
                 // API 실패 시 localStorage 폴백
                 loadFromLocal()
             } finally {
-                setIsLoading(false)
+                if (!controller.signal.aborted) setIsLoading(false)
             }
         }
-        
+
         const loadFromLocal = () => {
             const history = storage.get<{ date: string, time: number, wpm: number, accuracy: number }[]>('typingHistory', [])
             const today = new Date().toDateString()
@@ -87,12 +91,15 @@ function HomePage() {
             try {
                 const guestId = getGuestSessionId()
                 const challenge = await fetchDailyChallenge(guestId)
+                if (controller.signal.aborted) return
                 setDailyChallenge(challenge)
             } catch {
                 // 챌린지가 없으면 조용히 무시
             }
         }
         loadDailyChallenge()
+
+        return () => { controller.abort() }
     }, [])
 
 

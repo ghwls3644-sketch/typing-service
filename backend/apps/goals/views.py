@@ -2,7 +2,6 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
-from datetime import date
 from .models import UserGoal, UserStreak
 from .serializers import UserGoalSerializer, UserStreakSerializer, GoalProgressSerializer
 
@@ -24,7 +23,7 @@ class UserGoalViewSet(viewsets.ModelViewSet):
         from apps.stats.models import UserDaily
         
         goals = self.get_queryset()
-        today = date.today()
+        today = timezone.localdate()
         
         # 오늘 통계 가져오기
         today_stats = UserDaily.objects.filter(user=request.user, date=today).first()

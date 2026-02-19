@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { getChallengeBest, getChallengeHistory } from '../lib/challengeStorage'
-import { exportSessions, importSessions, getGuestSessionId } from '../lib/typingApi'
+import { exportSessions, importSessions, getGuestSessionId, fetchRecentSessions } from '../lib/typingApi'
 import type { ExportData } from '../lib/typingApi'
 import type { ChallengeSessionLocal, ChallengeBest } from '../types/challenge'
 import './HistoryPage.css'
@@ -67,39 +67,39 @@ function HistoryPage() {
         setTimeout(() => setImportStatus(null), 4000)
     }
 
-    // 연습 히스토리 로드 (샘플 데이터)
+    // 연습 히스토리 로드 (서버에서)
     useEffect(() => {
-        const sampleHistory: HistoryItem[] = [
-            {
-                id: '1',
-                date: '2026-02-07 14:00',
-                wpm: 75,
-                accuracy: 96,
-                time: 45.2,
-                language: 'korean',
-                text: '하늘 아래 첫 동네에 봄이 찾아왔다.'
-            },
-            {
-                id: '2',
-                date: '2026-02-07 13:30',
-                wpm: 82,
-                accuracy: 94,
-                time: 38.5,
-                language: 'english',
-                text: 'The quick brown fox jumps over the lazy dog.'
-            },
-            {
-                id: '3',
-                date: '2026-02-07 13:00',
-                wpm: 68,
-                accuracy: 98,
-                time: 52.1,
-                language: 'korean',
-                text: '타자 연습은 꾸준히 하면 실력이 늘어납니다.'
+        if (tab !== 'practice') return
+
+        const controller = new AbortController()
+
+        const loadHistory = async () => {
+            try {
+                const guestId = getGuestSessionId()
+                const sessions = await fetchRecentSessions(guestId)
+                if (controller.signal.aborted) return
+                const items: HistoryItem[] = sessions.map((s: any) => ({
+                    id: String(s.id),
+                    date: new Date(s.started_at).toLocaleString('ko-KR', {
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: '2-digit', minute: '2-digit'
+                    }),
+                    wpm: Number(s.wpm),
+                    accuracy: Number(s.accuracy),
+                    time: (s.duration_ms || 0) / 1000,
+                    language: s.language === 'ko' ? 'korean' as const : 'english' as const,
+                    text: s.text_content || ''
+                }))
+                setHistory(items)
+            } catch {
+                if (controller.signal.aborted) return
+                setHistory([])
             }
-        ]
-        setHistory(sampleHistory)
-    }, [])
+        }
+        loadHistory()
+
+        return () => { controller.abort() }
+    }, [tab])
 
     // 챌린지 데이터 로드
     useEffect(() => {

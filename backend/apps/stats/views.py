@@ -2,7 +2,8 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Avg, Max
-from datetime import date, timedelta
+from django.utils import timezone
+from datetime import timedelta
 from .models import UserDaily, ClientDaily
 from .serializers import (
     UserDailySerializer, UserDailyListSerializer,
@@ -27,7 +28,7 @@ class UserDailyViewSet(viewsets.ReadOnlyModelViewSet):
         """통계 요약 조회"""
         queryset = self.get_queryset()
         
-        thirty_days_ago = date.today() - timedelta(days=30)
+        thirty_days_ago = timezone.localdate() - timedelta(days=30)
         recent = queryset.filter(date__gte=thirty_days_ago)
         
         stats = recent.aggregate(
@@ -46,7 +47,7 @@ class UserDailyViewSet(viewsets.ReadOnlyModelViewSet):
             }
         
         # 오늘 통계
-        today_stats = queryset.filter(date=date.today()).aggregate(
+        today_stats = queryset.filter(date=timezone.localdate()).aggregate(
             today_sessions=Sum('total_sessions'),
             today_duration_ms=Sum('total_duration_ms'),
             today_avg_wpm=Avg('avg_wpm'),
@@ -99,10 +100,13 @@ class ClientDailyViewSet(viewsets.ViewSet):
         if not guest_id:
             return Response({'error': 'guest_session_id 필수'}, status=400)
         
-        days = int(request.query_params.get('days', 30))
+        try:
+            days = int(request.query_params.get('days', 30))
+        except (ValueError, TypeError):
+            return Response({'error': 'days는 정수여야 합니다.'}, status=400)
         lang = request.query_params.get('lang')
         
-        start_date = date.today() - timedelta(days=days)
+        start_date = timezone.localdate() - timedelta(days=days)
         queryset = ClientDaily.objects.filter(
             guest_session_id=guest_id,
             date__gte=start_date
@@ -120,7 +124,7 @@ class ClientDailyViewSet(viewsets.ViewSet):
         if not guest_id:
             return Response({'error': 'guest_session_id 필수'}, status=400)
         
-        thirty_days_ago = date.today() - timedelta(days=30)
+        thirty_days_ago = timezone.localdate() - timedelta(days=30)
         recent = ClientDaily.objects.filter(
             guest_session_id=guest_id,
             date__gte=thirty_days_ago
@@ -149,7 +153,7 @@ class ClientDailyViewSet(viewsets.ViewSet):
         # 오늘 통계
         today_data = ClientDaily.objects.filter(
             guest_session_id=guest_id,
-            date=date.today()
+            date=timezone.localdate()
         ).aggregate(
             today_sessions=Sum('total_sessions'),
             today_duration_ms=Sum('total_duration_ms'),

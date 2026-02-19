@@ -1,7 +1,7 @@
 // 연습 모드 타입 정의 (v4.0 스펙)
 
-// 2개 모드만 지원 (v4.0)
-export type PracticeMode = 'word' | 'short'
+// 7개 모드 지원 (v4.0+)
+export type PracticeMode = 'word' | 'short' | 'sentence' | 'time_attack' | 'accuracy_challenge' | 'kor_drill' | 'weakness_drill'
 
 export interface ModeConfig {
   id: PracticeMode
@@ -16,6 +16,9 @@ export interface PracticeSettings {
   language: 'korean' | 'english'
   difficulty: 1 | 2 | 3  // v4.0: 3단계만
   itemsPerSession?: number
+  timeLimitSec?: number
+  maxErrors?: number
+  minAccuracy?: number
 }
 
 export interface TypingStats {

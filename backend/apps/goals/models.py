@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.conf import settings
 
 
@@ -108,36 +108,43 @@ class UserStreak(models.Model):
     def __str__(self):
         return f"{self.user.username} - 현재 {self.current_streak}일 (최장 {self.longest_streak}일)"
     
+    @transaction.atomic
     def update_streak(self, activity_date):
-        """스트릭 업데이트 로직"""
+        """스트릭 업데이트 로직 (select_for_update로 race condition 방지)"""
         from datetime import timedelta
-        
-        if self.last_active_date is None:
-            # 첫 활동
-            self.current_streak = 1
-            self.streak_start_date = activity_date
-        elif activity_date == self.last_active_date:
-            # 같은 날 중복 활동 - 스트릭 변경 없음
-            pass
-        elif activity_date == self.last_active_date + timedelta(days=1):
-            # 연속 활동
-            self.current_streak += 1
+
+        # 동시 요청 시 잠금
+        locked_self = UserStreak.objects.select_for_update().get(pk=self.pk)
+
+        if locked_self.last_active_date is None:
+            locked_self.current_streak = 1
+            locked_self.streak_start_date = activity_date
+        elif activity_date == locked_self.last_active_date:
+            # 같은 날 중복 활동 - 변경 없음
+            return
+        elif activity_date > locked_self.last_active_date and \
+                activity_date == locked_self.last_active_date + timedelta(days=1):
+            locked_self.current_streak += 1
+        elif activity_date > locked_self.last_active_date:
+            locked_self.current_streak = 1
+            locked_self.streak_start_date = activity_date
         else:
-            # 스트릭 끊김 - 리셋
-            self.current_streak = 1
-            self.streak_start_date = activity_date
-        
-        # 최장 스트릭 갱신
-        if self.current_streak > self.longest_streak:
-            self.longest_streak = self.current_streak
-        
-        self.last_active_date = activity_date
-        self.save()
+            # activity_date < last_active_date (과거 날짜) - 무시
+            return
+
+        if locked_self.current_streak > locked_self.longest_streak:
+            locked_self.longest_streak = locked_self.current_streak
+
+        locked_self.last_active_date = activity_date
+        locked_self.save()
+
+        # 현재 인스턴스도 동기화
+        self.refresh_from_db()
 
 
 class ClientStreak(models.Model):
     """익명 사용자(guest_session_id) 스트릭 캐시"""
-    
+
     guest_session_id = models.CharField(
         max_length=100,
         unique=True,
@@ -169,32 +176,39 @@ class ClientStreak(models.Model):
         auto_now=True,
         verbose_name='수정일'
     )
-    
+
     class Meta:
         verbose_name = '익명 스트릭'
         verbose_name_plural = '익명 스트릭들'
-    
+
     def __str__(self):
         return f"{self.guest_session_id[:20]} - 현재 {self.current_streak}일 (최장 {self.longest_streak}일)"
-    
+
+    @transaction.atomic
     def update_streak(self, activity_date):
-        """스트릭 업데이트 로직"""
+        """스트릭 업데이트 로직 (select_for_update로 race condition 방지)"""
         from datetime import timedelta
-        
-        if self.last_active_date is None:
-            self.current_streak = 1
-            self.streak_start_date = activity_date
-        elif activity_date == self.last_active_date:
-            pass
-        elif activity_date == self.last_active_date + timedelta(days=1):
-            self.current_streak += 1
+
+        locked_self = ClientStreak.objects.select_for_update().get(pk=self.pk)
+
+        if locked_self.last_active_date is None:
+            locked_self.current_streak = 1
+            locked_self.streak_start_date = activity_date
+        elif activity_date == locked_self.last_active_date:
+            return
+        elif activity_date > locked_self.last_active_date and \
+                activity_date == locked_self.last_active_date + timedelta(days=1):
+            locked_self.current_streak += 1
+        elif activity_date > locked_self.last_active_date:
+            locked_self.current_streak = 1
+            locked_self.streak_start_date = activity_date
         else:
-            self.current_streak = 1
-            self.streak_start_date = activity_date
-        
-        if self.current_streak > self.longest_streak:
-            self.longest_streak = self.current_streak
-        
-        self.last_active_date = activity_date
-        self.save()
+            return
+
+        if locked_self.current_streak > locked_self.longest_streak:
+            locked_self.longest_streak = locked_self.current_streak
+
+        locked_self.last_active_date = activity_date
+        locked_self.save()
+        self.refresh_from_db()
 

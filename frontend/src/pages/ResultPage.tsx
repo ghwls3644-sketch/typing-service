@@ -230,9 +230,7 @@ function PracticeResult({ state }: { state: PracticeLocationState }) {
         if (!stats || saveAttempted.current) return
         saveAttempted.current = true
         
-        syncPendingSessions().then(({ synced }) => {
-            if (synced > 0) console.warn(`${synced}개 대기 세션 동기화 완료`)
-        })
+        syncPendingSessions().catch(() => {})
         
         const saveResult = async () => {
             setSaveStatus('saving')
@@ -246,7 +244,7 @@ function PracticeResult({ state }: { state: PracticeLocationState }) {
                 error_count: stats.errors,
                 accuracy: stats.accuracy,
                 wpm: stats.wpm,
-                cpm: Math.round(stats.correctChars / (stats.time / 60)),
+                cpm: stats.time > 0 ? Math.round(stats.correctChars / (stats.time / 60)) : 0,
                 metadata: metadata,
                 guest_session_id: getGuestSessionId()
             }
@@ -318,15 +316,16 @@ function PracticeResult({ state }: { state: PracticeLocationState }) {
     }
 
     const getModeName = (m?: PracticeMode) => {
-        const names: Record<PracticeMode, string> = {
-            sentence: '문장 연습',
+        const names: Record<string, string> = {
             word: '단어 연습',
+            short: '짧은 글 연습',
+            sentence: '문장 연습',
             time_attack: '타임어택',
             accuracy_challenge: '정확도 챌린지',
             kor_drill: '한글 드릴',
             weakness_drill: '약점 훈련'
         }
-        return m ? names[m] : '연습'
+        return m ? (names[m] || '연습') : '연습'
     }
 
     const getFeedback = () => {

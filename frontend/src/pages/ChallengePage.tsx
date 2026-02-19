@@ -51,7 +51,7 @@ function ChallengePage() {
       console.error('❌ Error in handleComplete:', err)
       alert('결과 저장 또는 이동 중 오류가 발생했습니다.')
     }
-  }, [navigate])
+  }, [navigate, isBlindMode])
   
   const {
     phase,
@@ -118,17 +118,15 @@ function ChallengePage() {
     if (phase === 'running' && remainingTime <= 30 && !hasRefilled) {
       const refillItems = async () => {
         setHasRefilled(true)
-        console.log('⏳ 30초 남음! 추가 단어 리필 시도...')
-        
+
         try {
           const response = await fetchPracticeItems('word', 'ko', 2, 200)
           if (response.items.length > 0) {
             const shuffled = [...response.items].sort(() => Math.random() - 0.5)
             setItems(prev => [...prev, ...shuffled])
-            console.log('✅ 추가 단어 200개 리필 완료')
           }
-        } catch (err) {
-          console.warn('❌ 리필 실패 (게임은 계속 진행됩니다):', err)
+        } catch {
+          // 리필 실패해도 게임은 계속 진행
         }
       }
       

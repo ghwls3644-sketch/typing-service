@@ -11,8 +11,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # 외부 노출 제거: 내부 네트워크에서만 접근 가능
+    # 로컬 디버그가 필요하면 docker compose --profile debug up
     networks:
       - typing_network
     healthcheck:
@@ -46,6 +46,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/api/\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     command: >
       sh -c "python manage.py makemigrations --noinput &&
              python manage.py migrate --noinput &&

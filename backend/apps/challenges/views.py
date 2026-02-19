@@ -2,7 +2,6 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
-from datetime import date
 from .models import DailyChallenge, UserChallenge, ClientChallenge
 from .serializers import (
     DailyChallengeSerializer, 
@@ -25,7 +24,7 @@ class DailyChallengeViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def today(self, request):
         """오늘의 챌린지 조회"""
-        today = date.today()
+        today = timezone.localdate()
         challenge = self.get_queryset().filter(date=today).first()
         
         if not challenge:
@@ -84,16 +83,41 @@ class DailyChallengeViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
         )
     
+    MAX_WPM = 500       # 합리적인 WPM 상한값
+    MAX_ACCURACY = 100  # 정확도 상한값
+
     @action(detail=False, methods=['post'])
     def submit(self, request):
-        """챌린지 결과 제출"""
+        """챌린지 결과 제출 (서버 측 검증 포함)"""
         challenge_id = request.data.get('challenge_id')
         guest_id = request.data.get('guest_session_id', '')
         wpm = request.data.get('wpm')
         accuracy = request.data.get('accuracy')
-        
+
         if not challenge_id:
             return Response({'detail': 'challenge_id 필수'}, status=400)
+
+        # WPM/accuracy 서버 측 검증
+        if wpm is not None:
+            try:
+                wpm = int(wpm)
+            except (ValueError, TypeError):
+                return Response({'detail': 'wpm은 정수여야 합니다.'}, status=400)
+            if wpm < 0 or wpm > self.MAX_WPM:
+                return Response(
+                    {'detail': f'wpm은 0~{self.MAX_WPM} 범위여야 합니다.'},
+                    status=400
+                )
+        if accuracy is not None:
+            try:
+                accuracy = float(accuracy)
+            except (ValueError, TypeError):
+                return Response({'detail': 'accuracy는 숫자여야 합니다.'}, status=400)
+            if accuracy < 0 or accuracy > self.MAX_ACCURACY:
+                return Response(
+                    {'detail': f'accuracy는 0~{self.MAX_ACCURACY} 범위여야 합니다.'},
+                    status=400
+                )
         
         try:
             challenge = DailyChallenge.objects.get(id=challenge_id, is_active=True)
@@ -131,7 +155,7 @@ class DailyChallengeViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def ranking(self, request):
         """오늘의 챌린지 랭킹 (WPM 기준)"""
-        today = date.today()
+        today = timezone.localdate()
         challenge = self.get_queryset().filter(date=today).first()
         
         if not challenge:
@@ -140,7 +164,7 @@ class DailyChallengeViewSet(viewsets.ReadOnlyModelViewSet):
         # 로그인 사용자 + 익명 사용자 합산 랭킹
         entries = []
         
-        for uc in challenge.participants.filter(current_wpm__isnull=False).order_by('-current_wpm'):
+        for uc in challenge.participants.select_related('user').filter(current_wpm__isnull=False).order_by('-current_wpm'):
             entries.append({
                 'name': uc.user.nickname or uc.user.username,
                 'wpm': uc.current_wpm,

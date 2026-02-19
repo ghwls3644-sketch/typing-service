@@ -306,10 +306,15 @@ export interface ChallengeProgress {
     just_completed?: boolean
 }
 
-export async function fetchDailyChallenge(guestSessionId?: string): Promise<DailyChallengeInfo> {
+export async function fetchDailyChallenge(guestSessionId?: string): Promise<DailyChallengeInfo | null> {
     const params: Record<string, string> = {}
     if (guestSessionId) params.guest_session_id = guestSessionId
-    return api.get<DailyChallengeInfo>('/challenges/daily/today/', params)
+    try {
+        return await api.get<DailyChallengeInfo>('/challenges/daily/today/', params)
+    } catch {
+        // 챌린지가 없는 날(404)은 정상 상황 → null 반환
+        return null
+    }
 }
 
 export async function joinDailyChallenge(challengeId: number, guestSessionId?: string): Promise<ChallengeProgress> {

@@ -57,8 +57,7 @@ export function useTypingEngine({
     
     const accuracy = value.length > 0 ? Math.round((correct / value.length) * 100) : 100
     const minutes = elapsed / 60
-    const wordsTyped = value.trim().split(/\s+/).filter(w => w).length
-    const wpm = minutes > 0 ? Math.round(wordsTyped / minutes) : 0
+    const wpm = minutes > 0 ? Math.round((correct / 5) / minutes) : 0
     
     return {
       wpm,
@@ -144,7 +143,7 @@ export function useTypingEngine({
     
     // 완료 체크
     // 단어/짧은글 모드: 길이를 채운 후 다음 입력이 들어오면 자동 완료
-    if (value.length > targetText.length) {
+    if (value.length >= targetText.length) {
       finishPractice('completed')
     }
   }, [isFinished, isStarted, startTime, targetText, settings, calculateStats, finishPractice])

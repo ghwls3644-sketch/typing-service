@@ -1,3 +1,4 @@
+from django.db import models
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -141,7 +142,3 @@ def check_and_award_badges(user):
             user_level.add_experience(badge.reward_points // 2)
     
     return awarded
-
-
-# models import for Q object
-from django.db import models

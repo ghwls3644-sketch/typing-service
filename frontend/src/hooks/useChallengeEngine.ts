@@ -57,47 +57,32 @@ export function useChallengeEngine({
   const isComposingRef = useRef(false)
   const errorTimeoutRef = useRef<number | null>(null)
   const verifiedLengthRef = useRef(0)  // 검증 완료된 글자 수
-  const phaseRef = useRef<ChallengePhase>('ready')
 
-  // phaseRef 동기화
-  useEffect(() => {
-    phaseRef.current = phase
-  }, [phase])
-  
   const currentText = items[currentIndex] || ''
   
   // 게임 종료 처리
   const finishGame = useCallback(() => {
-    console.log('🏁 finishGame called. Type of onComplete:', typeof onComplete)
-    
     setPhase('finished')
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
     }
-    
-    console.log('✨ Setting stats and calling onComplete')
-    // 최종 통계로 콜백 호출
-    setStats(prev => {
-      console.log('📊 calling onComplete with stats:', prev)
-      if (onComplete) {
-        onComplete(prev)
-      } else {
-        console.error('❌ onComplete is undefined!')
-      }
-      return prev
-    })
-  }, [onComplete])
+  }, [])
   
   // 게임 종료 체크 (Timer Effect)
   useEffect(() => {
-    // console.log('Timer check:', remainingTime, phase)
     if (phase === 'running' && remainingTime <= 0) {
-      console.log('⏰ Timer ended (useEffect). calling finishGame')
       finishGame()
     }
   }, [phase, remainingTime, finishGame])
-  
+
+  // 게임 종료 시 onComplete 호출
+  useEffect(() => {
+    if (phase === 'finished' && onComplete) {
+      onComplete(stats)
+    }
+  }, [phase])
+
   // 타이머 시작
   const start = useCallback(() => {
     if (phase !== 'ready' || items.length === 0) return
@@ -110,8 +95,6 @@ export function useChallengeEngine({
     
     // 기존 타이머 제거
     if (timerRef.current) clearInterval(timerRef.current)
-
-    console.log('🏁 Game Started')
 
     timerRef.current = window.setInterval(() => {
       const elapsed = (Date.now() - (startTimeRef.current || Date.now())) / 1000
@@ -127,7 +110,6 @@ export function useChallengeEngine({
     // 오답 기록 (단어 단위)
     if (finalInput) {
       if (finalInput !== items[currentIndex]) {
-        console.log('📝 오답 기록:', items[currentIndex], '->', finalInput)
         setStats(prev => ({
           ...prev,
           errorLog: [

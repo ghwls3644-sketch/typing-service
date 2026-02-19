@@ -34,11 +34,12 @@ class SnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     def latest(self, request):
         """최신 랭킹 조회"""
         period = request.query_params.get('period', 'weekly')
-        language = request.query_params.get('language', 'all')
-        
-        snapshot = self.get_queryset().filter(
-            period=period    
-        ).first()
+        language = request.query_params.get('language')
+
+        qs = self.get_queryset().filter(period=period)
+        if language:
+            qs = qs.filter(language=language)
+        snapshot = qs.first()
         
         if not snapshot:
             return Response({'detail': '랭킹이 아직 생성되지 않았습니다.'}, status=404)

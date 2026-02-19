@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ModeSelector from '../components/Practice/ModeSelector'
 import ModeSettings from '../components/Practice/ModeSettings'
@@ -45,59 +45,7 @@ function PracticePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
-  // 현재 아이템 완료 -> 다음으로 이동
-  const handleItemComplete = useCallback((stats: TypingStats) => {
-    // 누적 통계 업데이트
-    setSessionStats(prev => ({
-      wpm: Math.round((prev.wpm * currentIndex + stats.wpm) / (currentIndex + 1)),
-      accuracy: Math.round((prev.accuracy * currentIndex + stats.accuracy) / (currentIndex + 1)),
-      time: prev.time + stats.time,
-      correctChars: prev.correctChars + stats.correctChars,
-      totalChars: prev.totalChars + stats.totalChars,
-      errors: prev.errors + stats.errors
-    }))
-    setAllInputs(prev => prev + (prev ? ' ' : '') + userInput)
-    
-    const nextIndex = currentIndex + 1
-    
-    // 모든 아이템 완료
-    if (nextIndex >= itemQueue.length) {
-      setTimeout(() => {
-        const finalStats = {
-          wpm: Math.round((sessionStats.wpm * currentIndex + stats.wpm) / (currentIndex + 1)),
-          accuracy: Math.round((sessionStats.accuracy * currentIndex + stats.accuracy) / (currentIndex + 1)),
-          time: sessionStats.time + stats.time,
-          correctChars: sessionStats.correctChars + stats.correctChars,
-          totalChars: sessionStats.totalChars + stats.totalChars,
-          errors: sessionStats.errors + stats.errors
-        }
-        navigate('/result', {
-          state: {
-            stats: finalStats,
-            text: itemQueue.join(settings.mode === 'word' ? ' ' : '\n'),
-            userInput: allInputs + (allInputs ? ' ' : '') + userInput,
-            language: settings.language,
-            mode: settings.mode,
-            settings
-          }
-        })
-      }, 300)
-      return
-    }
-    
-    // 다음 아이템으로 이동
-    setCurrentIndex(nextIndex)
-    setCurrentText(itemQueue[nextIndex])
-    reset()
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.value = ''
-        inputRef.current.focus()
-      }
-    }, 50)
-  }, [currentIndex, itemQueue, navigate, settings, sessionStats, allInputs])
-
-  // 타자 엔진 훅
+  // 타자 엔진 훅 (먼저 선언)
   const {
     userInput,
     stats,
@@ -108,15 +56,84 @@ function PracticePage() {
   } = useTypingEngine({
     targetText: currentText,
     settings,
-    onComplete: handleItemComplete
   })
+
+  // userInput을 ref로 추적 (stale closure 방지)
+  const userInputRef = useRef('')
+  useEffect(() => { userInputRef.current = userInput }, [userInput])
+
+  // 최신 state를 ref로 추적 (콜백에서 stale closure 방지)
+  const stateRef = useRef({ currentIndex, itemQueue, sessionStats, allInputs, settings })
+  useEffect(() => {
+    stateRef.current = { currentIndex, itemQueue, sessionStats, allInputs, settings }
+  }, [currentIndex, itemQueue, sessionStats, allInputs, settings])
+
+  // 현재 아이템 완료 -> 다음으로 이동
+  const handleItemComplete = useCallback((completedStats: TypingStats) => {
+    const { currentIndex: idx, itemQueue: queue, sessionStats: prevStats, allInputs: prevInputs, settings: s } = stateRef.current
+
+    // 누적 통계 업데이트
+    setSessionStats(prev => ({
+      wpm: Math.round((prev.wpm * idx + completedStats.wpm) / (idx + 1)),
+      accuracy: Math.round((prev.accuracy * idx + completedStats.accuracy) / (idx + 1)),
+      time: prev.time + completedStats.time,
+      correctChars: prev.correctChars + completedStats.correctChars,
+      totalChars: prev.totalChars + completedStats.totalChars,
+      errors: prev.errors + completedStats.errors
+    }))
+    setAllInputs(prev => prev + (prev ? ' ' : '') + userInputRef.current)
+
+    const nextIndex = idx + 1
+
+    // 모든 아이템 완료
+    if (nextIndex >= queue.length) {
+      setTimeout(() => {
+        const finalStats = {
+          wpm: Math.round((prevStats.wpm * idx + completedStats.wpm) / (idx + 1)),
+          accuracy: Math.round((prevStats.accuracy * idx + completedStats.accuracy) / (idx + 1)),
+          time: prevStats.time + completedStats.time,
+          correctChars: prevStats.correctChars + completedStats.correctChars,
+          totalChars: prevStats.totalChars + completedStats.totalChars,
+          errors: prevStats.errors + completedStats.errors
+        }
+        navigate('/result', {
+          state: {
+            stats: finalStats,
+            text: queue.join(s.mode === 'word' ? ' ' : '\n'),
+            userInput: prevInputs + (prevInputs ? ' ' : '') + userInputRef.current,
+            language: s.language,
+            mode: s.mode,
+            settings: s
+          }
+        })
+      }, 300)
+      return
+    }
+
+    // 다음 아이템으로 이동
+    setCurrentIndex(nextIndex)
+    setCurrentText(queue[nextIndex])
+    reset()
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.value = ''
+        inputRef.current.focus()
+      }
+    }, 50)
+  }, [navigate, reset])
+
+  // useTypingEngine의 onComplete 대신 isFinished 감지로 완료 처리
+  useEffect(() => {
+    if (isFinished && phase === 'practice') {
+      handleItemComplete(stats)
+    }
+  }, [isFinished])
 
   // Fallback 데이터 가져오기
   const getFallbackItems = () => {
     const mode = settings.mode === 'word' ? 'word' : 'short'
     const lang = settings.language === 'korean' ? 'korean' : 'english'
     const items = [...(FALLBACK_DATA[mode]?.[lang] || [])]
-    console.log('[Fallback] mode:', mode, 'lang:', lang, 'items:', items.length)
     // 셔플
     return items.sort(() => Math.random() - 0.5).slice(0, settings.itemsPerSession || 10)
   }
@@ -149,8 +166,10 @@ function PracticePage() {
     
     try {
       const language = settings.language === 'korean' ? 'ko' : 'en'
+      // 서버 API는 'word' | 'short'만 지원 — 다른 모드는 매핑
+      const apiMode: 'word' | 'short' = settings.mode === 'short' || settings.mode === 'sentence' ? 'short' : 'word'
       const response = await fetchPracticeItems(
-        settings.mode,
+        apiMode,
         language,
         settings.difficulty,
         settings.itemsPerSession || 10
@@ -323,10 +342,9 @@ function PracticePage() {
           value={userInput}
           onChange={(e) => handleInput(e.target.value)}
           onKeyDown={(e) => {
-            // 엔터키: 텍스트를 다 입력한 상태면 완료 처리
             if (e.key === 'Enter' && userInput.length >= currentText.length) {
               e.preventDefault()
-              handleInput(userInput + ' ')
+              handleItemComplete(stats)
             }
           }}
           disabled={isFinished}
@@ -342,7 +360,7 @@ function PracticePage() {
       <div className="progress-bar">
         <div
           className="progress-fill"
-          style={{ width: `${(userInput.length / currentText.length) * 100}%` }}
+          style={{ width: `${currentText.length > 0 ? (userInput.length / currentText.length) * 100 : 0}%` }}
         />
       </div>
 

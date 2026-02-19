@@ -6,12 +6,29 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """사용자 정보 직렬화"""
-    
+    """사용자 정보 직렬화 (프로필 수정 시 민감 필드 보호)"""
+
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'nickname', 'profile_image', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'username', 'email', 'created_at']
+
+
+class UserEmailChangeSerializer(serializers.Serializer):
+    """이메일 변경 시 비밀번호 확인 필요"""
+    current_password = serializers.CharField(write_only=True)
+    new_email = serializers.EmailField()
+
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError('비밀번호가 일치하지 않습니다.')
+        return value
+
+    def validate_new_email(self, value):
+        if User.objects.filter(email=value).exclude(pk=self.context['request'].user.pk).exists():
+            raise serializers.ValidationError('이미 사용 중인 이메일입니다.')
+        return value
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

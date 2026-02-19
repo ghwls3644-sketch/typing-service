@@ -218,11 +218,9 @@ class TextItem(models.Model):
         return text
     
     def save(self, *args, **kwargs):
-        # 자동으로 글자 수 계산
-        if not self.length:
+        # 항상 글자 수 재계산 (content 변경 시에도 반영)
+        if self.content:
             self.length = len(self.content.replace(' ', ''))
-        # 정규화된 콘텐츠 생성
-        if not self.normalized_content and self.content:
             lang = self.pack.language if self.pack else 'ko'
             self.normalized_content = self.normalize_text(self.content, lang)
         super().save(*args, **kwargs)

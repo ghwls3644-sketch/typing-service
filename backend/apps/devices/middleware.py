@@ -1,17 +1,23 @@
 import hashlib
 from django.utils import timezone
+from django.core.cache import cache
 from .models import Client
+
+# 동일 guest_id에 대해 DB upsert를 디바운싱하는 간격 (초)
+GUEST_UPSERT_DEBOUNCE_SECONDS = 60
 
 
 class GuestClientMiddleware:
     """
     모든 API 요청에서 guest_session_id를 감지하고
     devices_client 레코드를 upsert합니다.
-    
+
     guest_session_id 탐색 순서:
     1. POST/PUT body의 guest_session_id
     2. GET query param의 guest_session_id
     3. X-Guest-Session-Id 헤더 (향후 확장)
+
+    디바운싱: 동일 guest_id에 대해 60초 내 중복 DB 쓰기를 방지합니다.
     """
 
     def __init__(self, get_response):
@@ -22,8 +28,11 @@ class GuestClientMiddleware:
 
         if guest_id:
             request.guest_session_id = guest_id
-            # 비동기적으로 upsert하지 않고 동기 처리 (간단)
-            self._upsert_client(guest_id, request)
+            # 캐시 기반 디바운싱: 최근 upsert 한 적 없으면 DB 기록
+            cache_key = f'guest_seen:{guest_id}'
+            if not cache.get(cache_key):
+                self._upsert_client(guest_id, request)
+                cache.set(cache_key, 1, GUEST_UPSERT_DEBOUNCE_SECONDS)
         else:
             request.guest_session_id = None
 
