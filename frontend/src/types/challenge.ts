@@ -34,6 +34,7 @@ export interface ChallengeSessionLocal {
     maxCombo: number
     timeLimitSec: number
   }
+  isBlindMode?: boolean
 }
 
 export interface ChallengeBest {

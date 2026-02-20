@@ -39,7 +39,7 @@ export function getChallengeHistory(): ChallengeSessionLocal[] {
 /**
  * 챌린지 결과 저장 (최고기록 + 최근 10판)
  */
-export function saveChallengeResult(stats: ChallengeStats, durationMs: number): void {
+export function saveChallengeResult(stats: ChallengeStats, durationMs: number, isBlindMode: boolean = false): void {
   const now = Date.now()
   
   // 세션 데이터 생성
@@ -59,7 +59,8 @@ export function saveChallengeResult(stats: ChallengeStats, durationMs: number): 
       score: stats.score,
       maxCombo: stats.maxCombo,
       timeLimitSec: 60
-    }
+    },
+    isBlindMode
   }
   
   // 1. 최고기록 업데이트

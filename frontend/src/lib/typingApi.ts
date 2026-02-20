@@ -288,6 +288,7 @@ export interface DailyChallengeInfo {
     participants_count: number
     completed_count: number
     is_active: boolean
+    my_progress?: ChallengeProgress
 }
 
 export interface ChallengeProgress {
@@ -318,10 +319,28 @@ export async function fetchDailyChallenge(guestSessionId?: string): Promise<Dail
 }
 
 export async function joinDailyChallenge(challengeId: number, guestSessionId?: string): Promise<ChallengeProgress> {
-    return api.post<ChallengeProgress>('/challenges/daily/join/', {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw: any = await api.post('/challenges/daily/join/', {
         challenge_id: challengeId,
         guest_session_id: guestSessionId,
     })
+    // Backend returns ClientChallengeSerializer with nested `challenge` object.
+    // Map it to the flat ChallengeProgress type the UI expects.
+    const c = raw.challenge || {}
+    return {
+        id: raw.id,
+        challenge_title: c.title || '',
+        status: raw.status || 'in_progress',
+        current_wpm: raw.current_wpm || 0,
+        target_wpm: c.target_wpm ?? null,
+        progress_wpm: c.target_wpm ? Math.min((raw.current_wpm || 0) / c.target_wpm * 100, 100) : 0,
+        current_accuracy: raw.current_accuracy || 0,
+        target_accuracy: c.target_accuracy ?? null,
+        progress_accuracy: c.target_accuracy ? Math.min((raw.current_accuracy || 0) / Number(c.target_accuracy) * 100, 100) : 0,
+        current_sessions: raw.current_sessions || 0,
+        target_sessions: c.target_sessions || 0,
+        progress_sessions: c.target_sessions ? Math.min((raw.current_sessions || 0) / c.target_sessions * 100, 100) : 0,
+    }
 }
 
 export async function submitDailyChallenge(
