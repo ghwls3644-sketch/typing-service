@@ -54,7 +54,6 @@ function PracticePage() {
     userInput,
     stats,
     isStarted,
-    isFinished,
     handleInput,
     reset
   } = useTypingEngine({
@@ -140,12 +139,12 @@ function PracticePage() {
     }, 50)
   }, [navigate, reset])
 
-  // useTypingEngine의 onComplete 대신 isFinished 감지로 완료 처리
-  useEffect(() => {
-    if (isFinished && phase === 'practice') {
+  // 수동 완료 처리: Enter 키를 누르면 다음 아이템으로 이동
+  const handleManualComplete = useCallback(() => {
+    if (phase === 'practice' && userInput.length >= currentText.length) {
       handleItemComplete(stats)
     }
-  }, [isFinished])
+  }, [phase, userInput, currentText, stats, handleItemComplete])
 
   // Fallback 데이터 가져오기
   const getFallbackItems = () => {
@@ -360,18 +359,20 @@ function PracticePage() {
           value={userInput}
           onChange={(e) => handleInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && userInput.length >= currentText.length) {
+            if (e.key === 'Enter' || (e.key === ' ' && userInput.length >= currentText.length)) {
               e.preventDefault()
-              handleItemComplete(stats)
+              handleManualComplete()
             }
           }}
-          disabled={isFinished}
           placeholder={isStarted ? '' : '여기를 클릭하고 타이핑을 시작하세요'}
           autoFocus
           autoComplete="off"
           autoCapitalize="off"
           spellCheck="false"
         />
+        {userInput.length >= currentText.length && (
+          <div className="enter-hint">Enter 또는 Space를 눌러 다음으로</div>
+        )}
       </div>
 
       {/* 진행률 바 */}

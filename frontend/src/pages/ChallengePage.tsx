@@ -2,10 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useChallengeEngine } from '../hooks/useChallengeEngine'
 import { saveChallengeResult, getChallengeBest } from '../lib/challengeStorage'
-import KeyboardWithGuide from '../components/Keyboard/KeyboardWithGuide'
-import { useKeyPress } from '../hooks/useKeyPress'
-import { useKeyboardHighlight } from '../hooks/useKeyboardHighlight'
-import { useHangulKeystrokeQueue } from '../hooks/useHangulKeystrokeQueue'
 import type { ChallengeStats, ChallengeBest } from '../types/challenge'
 import { CHALLENGE_DURATION_SEC } from '../types/challenge'
 import { fetchPracticeItems } from '../lib/typingApi'
@@ -35,10 +31,6 @@ function ChallengePage() {
 
   // 블라인드 모드 상태
   const [isBlindMode, setIsBlindMode] = useState(false)
-
-  // 가상 키보드 설정
-  const [showKeyboard, setShowKeyboard] = useState(true)
-  const [showHandGuide, setShowHandGuide] = useState(true)
   
   // 챌린지 엔진
   const handleComplete = useCallback((stats: ChallengeStats) => {
@@ -79,14 +71,7 @@ function ChallengePage() {
     onComplete: handleComplete
   })
 
-  // 가상 키보드 훅 (챌린지는 항상 한글)
-  const pressedKeys = useKeyPress(phase === 'running' && showKeyboard)
-  const { keystrokeQueue, consumedKeystrokes } = useHangulKeystrokeQueue(
-    currentText, userInput, showKeyboard
-  )
-  const nextKeys = useKeyboardHighlight(
-    currentText, userInput, 'korean', keystrokeQueue, consumedKeystrokes
-  )
+
 
   // 키 입력 핸들러 (엔터, 스페이스바 처리)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -254,26 +239,7 @@ function ChallengePage() {
             </label>
           </div>
 
-          <div className="mode-toggle">
-            <label className="toggle-label">
-              <input
-                type="checkbox"
-                checked={showKeyboard}
-                onChange={(e) => setShowKeyboard(e.target.checked)}
-              />
-              <span className="toggle-text">⌨️ 가상 키보드</span>
-            </label>
-            {showKeyboard && (
-              <label className="toggle-label toggle-sub">
-                <input
-                  type="checkbox"
-                  checked={showHandGuide}
-                  onChange={(e) => setShowHandGuide(e.target.checked)}
-                />
-                <span className="toggle-text">🤚 손가락 가이드</span>
-              </label>
-            )}
-          </div>
+
 
           <button className="btn btn-primary btn-lg start-btn" onClick={handleStart}>
             🚀 시작하기
@@ -347,16 +313,7 @@ function ChallengePage() {
         />
       </div>
       
-      {/* 가상 키보드 + 손가락 가이드 */}
-      <KeyboardWithGuide
-        nextKeys={nextKeys}
-        pressedKeys={pressedKeys}
-        language="korean"
-        showKeyboard={showKeyboard}
-        showHandGuide={showHandGuide}
-        showPressedKeys={showKeyboard}
-        showFingerColors={showHandGuide}
-      />
+
 
       {/* 하단 정보 */}
       <div className="challenge-footer">

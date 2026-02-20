@@ -214,6 +214,17 @@
     color: var(--text-muted);
 }
 
+/* Enter 힌트 */
+.enter-hint {
+    text-align: center;
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-md);
+    color: var(--color-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    animation: pulse 1.2s infinite;
+}
+
 /* 진행률 바 */
 .progress-bar {
     height: 8px;

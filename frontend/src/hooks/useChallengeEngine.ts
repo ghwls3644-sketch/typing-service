@@ -243,14 +243,14 @@ export function useChallengeEngine({
       return
     }
     
+    // 입력 길이 제한: 목표 텍스트 길이까지만 허용
+    if (value.length > currentText.length) {
+      return
+    }
+    
     // 새로 확정된 글자들 점수 처리
     if (value.length > verifiedLengthRef.current) {
       processNewChars(value, verifiedLengthRef.current)
-    }
-    
-    // 텍스트 완료 체크
-    if (value.length >= currentText.length) {
-      moveToNext(value)
     }
   }, [phase, currentText, updateCharStatuses, processNewChars, moveToNext, userInput])
   
@@ -262,11 +262,6 @@ export function useChallengeEngine({
     if (userInput.length > verifiedLengthRef.current) {
       processNewChars(userInput, verifiedLengthRef.current)
       updateCharStatuses(userInput, false)
-    }
-    
-    // 텍스트 완료 체크
-    if (userInput.length >= currentText.length) {
-      moveToNext(userInput)
     }
   }, [userInput, currentText, processNewChars, updateCharStatuses, moveToNext])
   

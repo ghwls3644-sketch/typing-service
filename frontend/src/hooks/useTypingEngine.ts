@@ -141,10 +141,9 @@ export function useTypingEngine({
       }
     }
     
-    // 완료 체크
-    // 단어/짧은글 모드: 길이를 채운 후 다음 입력이 들어오면 자동 완료
-    if (value.length >= targetText.length) {
-      finishPractice('completed')
+    // 입력 길이 제한: 목표 텍스트 길이까지만 허용 (자동 완료 안 함)
+    if (value.length > targetText.length) {
+      return
     }
   }, [isFinished, isStarted, startTime, targetText, settings, calculateStats, finishPractice])
 
